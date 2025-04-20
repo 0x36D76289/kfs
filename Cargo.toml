@@ -7,6 +7,8 @@ edition = "2024"
 name = "kfs"
 path = "src/kmain.rs"
 crate-type = ["staticlib"]
+test = false
+bench = false
 
 [profile.dev]
 panic = "abort"
