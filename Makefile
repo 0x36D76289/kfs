@@ -6,7 +6,7 @@ ISODIR = $(BUILD_DIR)/isofiles
 
 KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 ISO = kfs.iso
-RUST_LIB = target/$(TARGET)/debug/libkfs.a
+RUST_LIB = target/$(TARGET)/release/libkfs.a
 
 NASM = nasm
 CARGO = cargo
@@ -22,8 +22,8 @@ $(BUILD_DIR):
 $(BUILD_DIR)/boot.o: $(BOOT_DIR)/boot.asm | $(BUILD_DIR)
 	$(NASM) -f elf32 -o $@ $<
 
-$(RUST_LIB): src/kmain.rs Cargo.toml
-	$(CARGO) build -Zbuild-std=core,compiler_builtins --target $(TARGET).json
+$(RUST_LIB): src/kmain.rs src/vga_buffer.rs Cargo.toml
+	$(CARGO) build -r
 
 $(KERNEL_BIN): $(BUILD_DIR)/boot.o $(RUST_LIB) linker.ld
 	$(LD) -m elf_i386 -n -o $@ -T linker.ld $(BUILD_DIR)/boot.o $(RUST_LIB)
