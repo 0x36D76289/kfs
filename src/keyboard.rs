@@ -4,259 +4,306 @@ use crate::io::{inb, outb};
 const KEYBOARD_DATA_PORT: u16 = 0x60;
 const KEYBOARD_STATUS_PORT: u16 = 0x64;
 
-const EXTENDED_KEY: u8 = 0xE0;
-
-// Scan code QWERTY
+// US QWERTY layout scan code table
 static SCAN_CODE_TABLE: [u8; 128] = [
-    0, 27, b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'0', b'-', b'=', b'\x08',
-    b'\t', b'q', b'w', b'e', b'r', b't', b'y', b'u', b'i', b'o', b'p', b'[', b']', b'\n',
-    0, b'a', b's', b'd', b'f', b'g', b'h', b'j', b'k', b'l', b';', b'\'', b'`', 0,
-    b'\\', b'z', b'x', b'c', b'v', b'b', b'n', b'm', b',', b'.', b'/', 0, b'*', 0,
-    b' ', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, b'-', 0, 0, 0, b'+',
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    0,          // 0x00: Error
+    27,         // 0x01: Escape
+    b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'0', b'-', b'=', 
+    b'\x08',    // 0x0E: Backspace
+    b'\t',      // 0x0F: Tab
+    b'q', b'w', b'e', b'r', b't', b'y', b'u', b'i', b'o', b'p', b'[', b']', 
+    b'\n',      // 0x1C: Enter
+    0,          // 0x1D: Left Control
+    b'a', b's', b'd', b'f', b'g', b'h', b'j', b'k', b'l', b';', b'\'', b'`', 
+    0,          // 0x2A: Left Shift
+    b'\\',      // 0x2B: Backslash
+    b'z', b'x', b'c', b'v', b'b', b'n', b'm', b',', b'.', b'/', 
+    0,          // 0x36: Right Shift
+    b'*',       // 0x37: Keypad *
+    0,          // 0x38: Left Alt
+    b' ',       // 0x39: Space
+    0,          // 0x3A: Caps Lock
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x3B-0x44: F1-F10
+    0,          // 0x45: Num Lock
+    0,          // 0x46: Scroll Lock
+    b'7',       // 0x47: Keypad 7 (Home)
+    b'8',       // 0x48: Keypad 8 (Up)
+    b'9',       // 0x49: Keypad 9 (PgUp)
+    b'-',       // 0x4A: Keypad -
+    b'4',       // 0x4B: Keypad 4 (Left)
+    b'5',       // 0x4C: Keypad 5
+    b'6',       // 0x4D: Keypad 6 (Right)
+    b'+',       // 0x4E: Keypad +
+    b'1',       // 0x4F: Keypad 1 (End)
+    b'2',       // 0x50: Keypad 2 (Down)
+    b'3',       // 0x51: Keypad 3 (PgDn)
+    b'0',       // 0x52: Keypad 0 (Ins)
+    b'.',       // 0x53: Keypad . (Del)
+    0, 0,       // 0x54-0x55: Alt-SysRq, Key 0x56
+    0,          // 0x56: Usually backslash/pipe on non-US keyboards
+    0, 0,       // 0x57-0x58: F11-F12
+    0, 0, 0, 0, 0, 0, 0,          // 0x59-0x5F: Other keys
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x60-0x6F
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x70-0x7F
 ];
 
-// Function key mappings (F1-F12)
-const KEY_F1_SCANCODE: u8 = 0x3B;
-const KEY_F2_SCANCODE: u8 = 0x3C;
-const KEY_F3_SCANCODE: u8 = 0x3D;
-const KEY_F4_SCANCODE: u8 = 0x3E;
-// const KEY_F5_SCANCODE: u8 = 0x3F;
-// const KEY_F6_SCANCODE: u8 = 0x40;
-// const KEY_F7_SCANCODE: u8 = 0x41;
-// const KEY_F8_SCANCODE: u8 = 0x42;
-// const KEY_F9_SCANCODE: u8 = 0x43;
-// const KEY_F10_SCANCODE: u8 = 0x44;
-// const KEY_F11_SCANCODE: u8 = 0x57;
-// const KEY_F12_SCANCODE: u8 = 0x58;
+// US QWERTY layout - uppercase/shifted
+static SHIFT_SCAN_CODE_TABLE: [u8; 128] = [
+    0,          // 0x00: Error
+    27,         // 0x01: Escape
+    b'!', b'@', b'#', b'$', b'%', b'^', b'&', b'*', b'(', b')', b'_', b'+', 
+    b'\x08',    // 0x0E: Backspace
+    b'\t',      // 0x0F: Tab
+    b'Q', b'W', b'E', b'R', b'T', b'Y', b'U', b'I', b'O', b'P', b'{', b'}', 
+    b'\n',      // 0x1C: Enter
+    0,          // 0x1D: Left Control
+    b'A', b'S', b'D', b'F', b'G', b'H', b'J', b'K', b'L', b':', b'"', b'~', 
+    0,          // 0x2A: Left Shift
+    b'|',       // 0x2B: Backslash
+    b'Z', b'X', b'C', b'V', b'B', b'N', b'M', b'<', b'>', b'?', 
+    0,          // 0x36: Right Shift
+    b'*',       // 0x37: Keypad *
+    0,          // 0x38: Left Alt
+    b' ',       // 0x39: Space
+    0,          // 0x3A: Caps Lock
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x3B-0x44: F1-F10
+    0,          // 0x45: Num Lock
+    0,          // 0x46: Scroll Lock
+    b'7',       // 0x47: Keypad 7 (Home)
+    b'8',       // 0x48: Keypad 8 (Up)
+    b'9',       // 0x49: Keypad 9 (PgUp)
+    b'-',       // 0x4A: Keypad -
+    b'4',       // 0x4B: Keypad 4 (Left)
+    b'5',       // 0x4C: Keypad 5
+    b'6',       // 0x4D: Keypad 6 (Right)
+    b'+',       // 0x4E: Keypad +
+    b'1',       // 0x4F: Keypad 1 (End)
+    b'2',       // 0x50: Keypad 2 (Down)
+    b'3',       // 0x51: Keypad 3 (PgDn)
+    b'0',       // 0x52: Keypad 0 (Ins)
+    b'.',       // 0x53: Keypad . (Del)
+    0, 0,       // 0x54-0x55
+    0,          // 0x56
+    0, 0,       // 0x57-0x58: F11-F12
+    0, 0, 0, 0, 0, 0, 0,          // 0x59-0x5F
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x60-0x6F
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x70-0x7F
+];
 
-// Special key codes
-pub const KEY_ESCAPE: u8 = 1;
-pub const KEY_BACKSPACE: u8 = 14;
-pub const KEY_TAB: u8 = 15;
-pub const KEY_ENTER: u8 = 28;
-pub const KEY_CTRL: u8 = 29;
-pub const KEY_LSHIFT: u8 = 42;
-pub const KEY_RSHIFT: u8 = 54;
-pub const KEY_ALT: u8 = 56;
+#[derive(Debug, Copy, Clone)]
+pub struct KeyEvent {
+    pub key: u8,
+    pub scancode: u8,
+    pub is_release: bool,
+    pub shift: bool,
+    pub ctrl: bool,
+    pub alt: bool,
+    pub is_extended: bool,
+}
 
-// Function key codes (custom values beyond ASCII range for special handling)
-pub const KEY_F1: u8 = 128;
-pub const KEY_F2: u8 = 129;
-pub const KEY_F3: u8 = 130;
-pub const KEY_F4: u8 = 131;
-pub const KEY_F5: u8 = 132;
-pub const KEY_F6: u8 = 133;
-pub const KEY_F7: u8 = 134;
-pub const KEY_F8: u8 = 135;
-pub const KEY_F9: u8 = 136;
-pub const KEY_F10: u8 = 137;
-pub const KEY_F11: u8 = 138;
-pub const KEY_F12: u8 = 139;
+impl KeyEvent {
+    pub fn is_function_key(&self) -> bool {
+        // F1-F12: 0x3B-0x44, 0x57-0x58
+        match self.scancode {
+            0x3B..=0x44 | 0x57..=0x58 => true,
+            _ => false
+        }
+    }
 
-// Numpad key codes (custom values beyond ASCII range)
-pub const KEY_NUMPAD_0: u8 = 140;
-pub const KEY_NUMPAD_1: u8 = 141;
-pub const KEY_NUMPAD_2: u8 = 142;
-pub const KEY_NUMPAD_3: u8 = 143;
-pub const KEY_NUMPAD_4: u8 = 144;
-pub const KEY_NUMPAD_5: u8 = 145;
-pub const KEY_NUMPAD_6: u8 = 146;
-pub const KEY_NUMPAD_7: u8 = 147;
-pub const KEY_NUMPAD_8: u8 = 148;
-pub const KEY_NUMPAD_9: u8 = 149;
+    pub fn function_key_num(&self) -> Option<u8> {
+        match self.scancode {
+            0x3B => Some(1),  // F1
+            0x3C => Some(2),  // F2
+            0x3D => Some(3),  // F3
+            0x3E => Some(4),  // F4
+            0x3F => Some(5),  // F5
+            0x40 => Some(6),  // F6
+            0x41 => Some(7),  // F7
+            0x42 => Some(8),  // F8
+            0x43 => Some(9),  // F9
+            0x44 => Some(10), // F10
+            0x57 => Some(11), // F11
+            0x58 => Some(12), // F12
+            _ => None,
+        }
+    }
+
+    pub fn is_numpad_key(&self) -> bool {
+        // Keypad 0-9 and operations
+        match self.scancode {
+            0x47..=0x53 => true,
+            _ => false
+        }
+    }
+
+    pub fn numpad_digit(&self) -> Option<u8> {
+        match self.scancode {
+            0x47 => Some(7), // Keypad 7
+            0x48 => Some(8), // Keypad 8
+            0x49 => Some(9), // Keypad 9
+            0x4B => Some(4), // Keypad 4
+            0x4C => Some(5), // Keypad 5
+            0x4D => Some(6), // Keypad 6
+            0x4F => Some(1), // Keypad 1
+            0x50 => Some(2), // Keypad 2
+            0x51 => Some(3), // Keypad 3
+            0x52 => Some(0), // Keypad 0
+            _ => None,
+        }
+    }
+}
 
 pub struct KeyboardState {
     shift_pressed: bool,
     ctrl_pressed: bool,
     alt_pressed: bool,
-    extended_key: bool,
+    caps_lock: bool,
+    num_lock: bool,
+    scroll_lock: bool,
+    extended: bool,
 }
 
 impl KeyboardState {
-    pub fn new() -> KeyboardState {
+    pub fn new() -> Self {
         KeyboardState {
             shift_pressed: false,
             ctrl_pressed: false,
             alt_pressed: false,
-            extended_key: false,
+            caps_lock: false,
+            num_lock: true, // Default on
+            scroll_lock: false,
+            extended: false,
         }
     }
-    
+
     pub fn handle_scancode(&mut self, scancode: u8) -> Option<KeyEvent> {
-        // Handle extended key prefix
-        if scancode == EXTENDED_KEY {
-            self.extended_key = true;
+        // Check if this is an extended scancode (0xE0)
+        if scancode == 0xE0 {
+            self.extended = true;
             return None;
         }
-        
-        let released = scancode & 0x80 != 0;
-        let code = scancode & 0x7F;
-        
-        if self.extended_key {
-            self.extended_key = false;
-            
-            match code {
-                0x35 => { // Numpad /
-                    if !released { return Some(KeyEvent::new(b'/', code, self)); }
-                    None
-                },
-                0x1C => { // Numpad Enter
-                    if !released { return Some(KeyEvent::new(b'\n', code, self)); }
-                    None
-                },
-                _ => None,
-            }
-        } else {
-            match code {
-                KEY_LSHIFT | KEY_RSHIFT => {
-                    self.shift_pressed = !released;
-                    None
-                },
-                KEY_CTRL => {
-                    self.ctrl_pressed = !released;
-                    None
-                },
-                KEY_ALT => {
-                    self.alt_pressed = !released;
-                    None
-                },
-                // Function keys
-                KEY_F1_SCANCODE => {
-                    if !released { return Some(KeyEvent::new(KEY_F1, code, self)); }
-                    None
-                },
-                KEY_F2_SCANCODE => {
-                    if !released { return Some(KeyEvent::new(KEY_F2, code, self)); }
-                    None
-                },
-                KEY_F3_SCANCODE => {
-                    if !released { return Some(KeyEvent::new(KEY_F3, code, self)); }
-                    None
-                },
-                KEY_F4_SCANCODE => {
-                    if !released { return Some(KeyEvent::new(KEY_F4, code, self)); }
-                    None
-                },
-                // Numpad keys without NumLock handling for simplicity
-                0x52 => { // Numpad 0
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_0, code, self)); }
-                    None
-                },
-                0x4F => { // Numpad 1
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_1, code, self)); }
-                    None
-                },
-                0x50 => { // Numpad 2
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_2, code, self)); }
-                    None
-                },
-                0x51 => { // Numpad 3
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_3, code, self)); }
-                    None
-                },
-                0x4B => { // Numpad 4
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_4, code, self)); }
-                    None
-                },
-                0x4C => { // Numpad 5
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_5, code, self)); }
-                    None
-                },
-                0x4D => { // Numpad 6
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_6, code, self)); }
-                    None
-                },
-                0x47 => { // Numpad 7
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_7, code, self)); }
-                    None
-                },
-                0x48 => { // Numpad 8
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_8, code, self)); }
-                    None
-                },
-                0x49 => { // Numpad 9
-                    if !released { return Some(KeyEvent::new(KEY_NUMPAD_9, code, self)); }
-                    None
-                },
-                _ if released => None,
-                _ => {
-                    if code < SCAN_CODE_TABLE.len() as u8 {
-                        let c = SCAN_CODE_TABLE[code as usize];
-                        if c == 0 {
-                            None
-                        } else {
-                            Some(KeyEvent::new(c, code, self))
-                        }
-                    } else {
-                        None
-                    }
+
+        // Check if this is a key release (high bit set)
+        let is_release = scancode & 0x80 != 0;
+        let scancode = scancode & 0x7F; // Clear the high bit
+
+        // Handle modifier keys
+        match scancode {
+            0x1D => { // Ctrl
+                self.ctrl_pressed = !is_release;
+                return None;
+            },
+            0x2A | 0x36 => { // Left/Right Shift
+                self.shift_pressed = !is_release;
+                return None;
+            },
+            0x38 => { // Alt
+                self.alt_pressed = !is_release;
+                return None;
+            },
+            0x3A => { // Caps Lock (toggle on press, not release)
+                if !is_release {
+                    self.caps_lock = !self.caps_lock;
+                    self.update_leds();
                 }
-            }
+                return None;
+            },
+            0x45 => { // Num Lock (toggle on press, not release)
+                if !is_release {
+                    self.num_lock = !self.num_lock;
+                    self.update_leds();
+                }
+                return None;
+            },
+            0x46 => { // Scroll Lock (toggle on press, not release)
+                if !is_release {
+                    self.scroll_lock = !self.scroll_lock;
+                    self.update_leds();
+                }
+                return None;
+            },
+            _ => {}
         }
-    }
-}
 
-pub struct KeyEvent {
-    pub key: u8,
-    pub scancode: u8,
-    pub shift_pressed: bool,
-    pub ctrl_pressed: bool,
-    pub alt_pressed: bool,
-}
+        // Skip key releases for regular keys
+        if is_release {
+            self.extended = false;
+            return None;
+        }
 
-impl KeyEvent {
-    // Helper constructor
-    fn new(key: u8, scancode: u8, state: &KeyboardState) -> Self {
-        KeyEvent {
+        // Determine the character based on the scancode and modifier state
+        let key = if self.shift_pressed || (self.caps_lock && scancode >= 0x10 && scancode <= 0x32) {
+            // Use shift table or uppercase for letters when caps lock is on
+            SHIFT_SCAN_CODE_TABLE[scancode as usize]
+        } else {
+            SCAN_CODE_TABLE[scancode as usize]
+        };
+
+        let key_event = KeyEvent {
             key,
             scancode,
-            shift_pressed: state.shift_pressed,
-            ctrl_pressed: state.ctrl_pressed,
-            alt_pressed: state.alt_pressed,
-        }
+            is_release,
+            shift: self.shift_pressed,
+            ctrl: self.ctrl_pressed,
+            alt: self.alt_pressed,
+            is_extended: self.extended,
+        };
+
+        // Reset the extended flag
+        self.extended = false;
+
+        Some(key_event)
     }
-    
-    pub fn is_function_key(&self) -> bool {
-        self.key >= KEY_F1 && self.key <= KEY_F12
-    }
-    
-    pub fn is_numpad_key(&self) -> bool {
-        self.key >= KEY_NUMPAD_0 && self.key <= KEY_NUMPAD_9
-    }
-    
-    pub fn function_key_num(&self) -> Option<u8> {
-        if self.is_function_key() {
-            Some(self.key - KEY_F1 + 1)
-        } else {
-            None
-        }
-    }
-    
-    pub fn numpad_digit(&self) -> Option<u8> {
-        if self.is_numpad_key() {
-            Some(self.key - KEY_NUMPAD_0)
-        } else {
-            None
+
+    fn update_leds(&self) {
+        // Update keyboard LEDs
+        unsafe {
+            // First, send the command to update LEDs
+            while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+            outb(KEYBOARD_DATA_PORT, 0xED);
+
+            // Then send the LED state
+            while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+            let led_state = ((self.scroll_lock as u8) << 0) |
+                           ((self.num_lock as u8) << 1) |
+                           ((self.caps_lock as u8) << 2);
+            outb(KEYBOARD_DATA_PORT, led_state);
         }
     }
 }
 
+// Initialize the keyboard
 pub fn initialize_keyboard() {
     unsafe {
+        // Reset the keyboard
         while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
-        
         outb(KEYBOARD_DATA_PORT, 0xFF);
         
-        while inb(KEYBOARD_STATUS_PORT) & 1 == 0 {}
-        let _ = inb(KEYBOARD_DATA_PORT);
+        // Wait for ACK
+        while inb(KEYBOARD_DATA_PORT) != 0xFA {}
+        
+        // Set default parameters
+        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+        outb(KEYBOARD_DATA_PORT, 0xF6);
+        
+        // Wait for ACK
+        while inb(KEYBOARD_DATA_PORT) != 0xFA {}
+        
+        // Enable scanning
+        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+        outb(KEYBOARD_DATA_PORT, 0xF4);
+        
+        // Wait for ACK
+        while inb(KEYBOARD_DATA_PORT) != 0xFA {}
     }
 }
 
+// Read a scancode from the keyboard
 pub fn read_scancode() -> Option<u8> {
     unsafe {
+        // Check if there's data in the keyboard buffer
         if inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
+            // Read the scancode
             Some(inb(KEYBOARD_DATA_PORT))
         } else {
             None

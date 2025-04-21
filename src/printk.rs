@@ -1,7 +1,7 @@
+use crate::screen::Screen;
+use crate::vga::{Color, ColorCode};
 use core::fmt;
 use core::sync::atomic::{AtomicPtr, Ordering};
-use crate::screen::Screen;
-use crate::vga::{ColorCode, Color};
 
 static KERNEL_SCREEN: AtomicPtr<Screen> = AtomicPtr::new(core::ptr::null_mut());
 
@@ -47,7 +47,7 @@ pub fn printk_color(fg: Color, bg: Color, s: &str) {
     if !screen_ptr.is_null() {
         unsafe {
             let current_color = (*screen_ptr).color;
-            
+
             (*screen_ptr).set_color(ColorCode::new(fg, bg));
             (*screen_ptr).write_string(s);
             (*screen_ptr).set_color(current_color);
