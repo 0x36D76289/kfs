@@ -24,7 +24,7 @@ stack_top:
 ; Kernel entry point
 section .text
 global start
-extern k_main
+extern kmain
 
 start:
     ; Set up stack
@@ -38,9 +38,9 @@ start:
     cld
     
     ; Call the Rust main function
-    call k_main
+    call kmain
     
-    ; If k_main ever returns (it shouldn't), just hang
+    ; If kmain ever returns (it shouldn't), just hang
 .hang:
     hlt         ; Halt the CPU
     jmp .hang   ; If an NMI occurs, jump back to halt

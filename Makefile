@@ -22,7 +22,7 @@ $(BUILD_DIR):
 $(BUILD_DIR)/boot.o: $(BOOT_DIR)/boot.asm | $(BUILD_DIR)
 	$(NASM) -f elf32 -o $@ $<
 
-$(RUST_LIB): src/kmain.rs src/vga_buffer.rs Cargo.toml
+$(RUST_LIB): Cargo.toml
 	$(CARGO) build -r
 
 $(KERNEL_BIN): $(BUILD_DIR)/boot.o $(RUST_LIB) linker.ld
