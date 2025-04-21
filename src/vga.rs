@@ -56,7 +56,7 @@ pub unsafe fn read_char(x: usize, y: usize) -> VGAChar {
     unsafe {
         vga_value = *VGA_BUFFER.add(idx);
     }
-    
+
     VGAChar {
         character: (vga_value & 0xFF) as u8,
         color_code: ColorCode((vga_value >> 8) as u8),
@@ -68,7 +68,7 @@ pub unsafe fn clear_screen(color_code: ColorCode) {
         character: b' ',
         color_code,
     };
-    
+
     for y in 0..VGA_HEIGHT {
         for x in 0..VGA_WIDTH {
             unsafe {

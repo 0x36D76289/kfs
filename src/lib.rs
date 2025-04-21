@@ -1,13 +1,12 @@
 #![no_std]
 
-pub mod vga;
-pub mod screen;
-pub mod keyboard;
-pub mod printk;
 pub mod io;
-pub mod shell;
+pub mod keyboard;
 pub mod kmain;
-pub mod screens;
+pub mod printk;
+pub mod screen;
+pub mod shell;
+pub mod vga;
 
 #[macro_export]
 macro_rules! printk {
