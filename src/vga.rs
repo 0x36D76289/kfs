@@ -1,9 +1,7 @@
-// VGA text mode constants
 pub const VGA_BUFFER: *mut u16 = 0xb8000 as *mut u16;
 pub const VGA_WIDTH: usize = 80;
 pub const VGA_HEIGHT: usize = 25;
 
-// VGA colors
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -36,7 +34,6 @@ impl ColorCode {
     }
 }
 
-// VGA character representation (character + color attribute)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 pub struct VGAChar {
@@ -44,7 +41,6 @@ pub struct VGAChar {
     pub color_code: ColorCode,
 }
 
-// Functions to directly manipulate the VGA buffer
 pub unsafe fn write_char(x: usize, y: usize, c: VGAChar) {
     if x < VGA_WIDTH && y < VGA_HEIGHT {
         let idx = y * VGA_WIDTH + x;

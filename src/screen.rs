@@ -4,7 +4,7 @@ use crate::io::outb;
 pub struct Screen {
     cursor_x: usize,
     cursor_y: usize,
-    pub color: ColorCode, // Make color field public
+    pub color: ColorCode,
     buffer: [[VGAChar; VGA_WIDTH]; VGA_HEIGHT],
     is_active: bool,
 }
@@ -56,7 +56,6 @@ impl Screen {
         
         self.is_active = true;
         
-        // Write buffer to VGA
         unsafe {
             for y in 0..VGA_HEIGHT {
                 for x in 0..VGA_WIDTH {
@@ -73,7 +72,6 @@ impl Screen {
             return;
         }
         
-        // Save VGA to buffer
         unsafe {
             for y in 0..VGA_HEIGHT {
                 for x in 0..VGA_WIDTH {
@@ -90,7 +88,6 @@ impl Screen {
             b'\n' => self.new_line(),
             b'\r' => self.cursor_x = 0,
             b'\t' => {
-                // Tab is 4 spaces
                 for _ in 0..4 {
                     self.write_char(b' ');
                 }
@@ -140,7 +137,6 @@ impl Screen {
         if self.cursor_x > 0 {
             self.cursor_x -= 1;
             
-            // Clear the character
             let blank_char = VGAChar {
                 character: b' ',
                 color_code: self.color,
@@ -152,11 +148,9 @@ impl Screen {
                 unsafe { write_char(self.cursor_x, self.cursor_y, blank_char); }
             }
         } else if self.cursor_y > 0 {
-            // Go to the end of previous line
             self.cursor_y -= 1;
             self.cursor_x = VGA_WIDTH - 1;
             
-            // Clear the character
             let blank_char = VGAChar {
                 character: b' ',
                 color_code: self.color,
@@ -171,14 +165,12 @@ impl Screen {
     }
     
     fn scroll(&mut self) {
-        // Move everything up one line
         for y in 1..VGA_HEIGHT {
             for x in 0..VGA_WIDTH {
                 self.buffer[y - 1][x] = self.buffer[y][x];
             }
         }
         
-        // Clear the last line
         let blank_char = VGAChar {
             character: b' ',
             color_code: self.color,
@@ -188,11 +180,9 @@ impl Screen {
             self.buffer[VGA_HEIGHT - 1][x] = blank_char;
         }
         
-        // Update cursor
         self.cursor_y = VGA_HEIGHT - 1;
         
         if self.is_active {
-            // Update VGA buffer
             unsafe {
                 for y in 0..VGA_HEIGHT {
                     for x in 0..VGA_WIDTH {

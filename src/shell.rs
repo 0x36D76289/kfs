@@ -1,6 +1,7 @@
 use crate::vga::VGA_HEIGHT;
 use crate::{printk, printkln};
 use crate::keyboard::KeyEvent;
+use crate::screens;
 use core::arch::asm;
 
 const MAX_CMD_LENGTH: usize = 256;
@@ -31,6 +32,33 @@ impl Shell {
     }
     
     pub fn handle_keypress(&mut self, key_event: KeyEvent) {
+        if key_event.is_function_key() {
+            if let Some(fnum) = key_event.function_key_num() {
+                if fnum >= 1 && fnum <= screens::MAX_SCREENS as u8 {
+                    let screen_idx = (fnum - 1) as usize;
+
+                    if screens::switch_to_screen(screen_idx) {
+                        self.display_prompt();
+                    }
+                    return;
+                }
+            }
+            return;
+        }
+        
+        if key_event.is_numpad_key() {
+            if let Some(digit) = key_event.numpad_digit() {
+                let ascii_digit = b'0' + digit;
+                if self.buffer_pos < MAX_CMD_LENGTH - 1 {
+                    self.buffer[self.buffer_pos] = ascii_digit;
+                    self.buffer_pos += 1;
+                    printk!("{}", ascii_digit as char);
+                }
+            }
+            return;
+        }
+        
+        // Handle regular keys
         match key_event.key {
             b'\n' => {
                 printkln!();
@@ -45,7 +73,7 @@ impl Shell {
                 if self.buffer_pos > 0 {
                     self.buffer_pos -= 1;
                     self.buffer[self.buffer_pos] = 0;
-                    printk!("\x08 \x08"); // Backspace, space, backspace
+                    printk!("\x08 \x08");
                 }
             },
             _ => {
@@ -59,7 +87,6 @@ impl Shell {
     }
     
     fn execute_command(&mut self) {
-        // Convert buffer to string and trim whitespace
         let cmd_str = core::str::from_utf8(&self.buffer[0..self.buffer_pos])
             .unwrap_or("Invalid UTF-8")
             .trim();
@@ -89,7 +116,6 @@ impl Shell {
     }
     
     fn cmd_clear(&self) {
-        // This assumes printk uses the current screen
         for _ in 0..VGA_HEIGHT {
             printkln!();
         }
@@ -103,26 +129,22 @@ impl Shell {
     
     fn cmd_stacktrace(&self) {
         printkln!("Stack trace:");
-        // This is a simplified version that just prints the current frame pointer
         unsafe {
             let mut frame_ptr: usize;
             asm!("mov {}, ebp", out(reg) frame_ptr);
             
             printkln!("  Frame pointer: 0x{:x}", frame_ptr);
-            
-            // In a real implementation, you would walk the stack frames
-            // For a simple demo, just print the current frame
+
+            // TODO: Implement stack trace logic
         }
     }
     
     fn cmd_reboot(&self) {
         printkln!("Rebooting system...");
         unsafe {
-            // Send reset command to keyboard controller
-            while inb(0x64) & 2 != 0 {} // Wait for input buffer to empty
-            outb(0x64, 0xFE);           // Reset command
+            while inb(0x64) & 2 != 0 {}
+            outb(0x64, 0xFE);
             
-            // If we get here, the reboot failed
             printkln!("Reboot failed!");
         }
     }
@@ -137,7 +159,6 @@ impl Shell {
     }
 }
 
-// Helper function for cmd_reboot
 unsafe fn inb(port: u16) -> u8 {
     let result: u8;
     unsafe {

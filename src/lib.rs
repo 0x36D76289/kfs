@@ -1,6 +1,5 @@
 #![no_std]
 
-// Export our modules
 pub mod vga;
 pub mod screen;
 pub mod keyboard;
@@ -8,6 +7,7 @@ pub mod printk;
 pub mod io;
 pub mod shell;
 pub mod kmain;
+pub mod screens;
 
 #[macro_export]
 macro_rules! printk {
