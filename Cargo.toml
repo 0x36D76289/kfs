@@ -5,7 +5,7 @@ edition = "2024"
 
 [lib]
 name = "kfs"
-path = "src/kmain.rs"
+path = "src/lib.rs"
 crate-type = ["staticlib"]
 test = false
 bench = false
