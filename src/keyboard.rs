@@ -177,17 +177,14 @@ impl KeyboardState {
     }
 
     pub fn handle_scancode(&mut self, scancode: u8) -> Option<KeyEvent> {
-        // Check if this is an extended scancode (0xE0)
         if scancode == 0xE0 {
             self.extended = true;
             return None;
         }
 
-        // Check if this is a key release (high bit set)
         let is_release = scancode & 0x80 != 0;
         let scancode = scancode & 0x7F; // Clear the high bit
 
-        // Handle modifier keys
         match scancode {
             0x1D => { // Ctrl
                 self.ctrl_pressed = !is_release;
@@ -201,21 +198,21 @@ impl KeyboardState {
                 self.alt_pressed = !is_release;
                 return None;
             },
-            0x3A => { // Caps Lock (toggle on press, not release)
+            0x3A => { // Caps Lock
                 if !is_release {
                     self.caps_lock = !self.caps_lock;
                     self.update_leds();
                 }
                 return None;
             },
-            0x45 => { // Num Lock (toggle on press, not release)
+            0x45 => { // Num Lock
                 if !is_release {
                     self.num_lock = !self.num_lock;
                     self.update_leds();
                 }
                 return None;
             },
-            0x46 => { // Scroll Lock (toggle on press, not release)
+            0x46 => { // Scroll Lock
                 if !is_release {
                     self.scroll_lock = !self.scroll_lock;
                     self.update_leds();
@@ -225,15 +222,12 @@ impl KeyboardState {
             _ => {}
         }
 
-        // Skip key releases for regular keys
         if is_release {
             self.extended = false;
             return None;
         }
 
-        // Determine the character based on the scancode and modifier state
         let key = if self.shift_pressed || (self.caps_lock && scancode >= 0x10 && scancode <= 0x32) {
-            // Use shift table or uppercase for letters when caps lock is on
             SHIFT_SCAN_CODE_TABLE[scancode as usize]
         } else {
             SCAN_CODE_TABLE[scancode as usize]
@@ -249,20 +243,16 @@ impl KeyboardState {
             is_extended: self.extended,
         };
 
-        // Reset the extended flag
         self.extended = false;
 
         Some(key_event)
     }
 
     fn update_leds(&self) {
-        // Update keyboard LEDs
         unsafe {
-            // First, send the command to update LEDs
             while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
             outb(KEYBOARD_DATA_PORT, 0xED);
 
-            // Then send the LED state
             while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
             let led_state = ((self.scroll_lock as u8) << 0) |
                            ((self.num_lock as u8) << 1) |
@@ -272,7 +262,6 @@ impl KeyboardState {
     }
 }
 
-// Initialize the keyboard
 pub fn initialize_keyboard() {
     unsafe {
         // Reset the keyboard
@@ -298,12 +287,9 @@ pub fn initialize_keyboard() {
     }
 }
 
-// Read a scancode from the keyboard
 pub fn read_scancode() -> Option<u8> {
     unsafe {
-        // Check if there's data in the keyboard buffer
         if inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
-            // Read the scancode
             Some(inb(KEYBOARD_DATA_PORT))
         } else {
             None
