@@ -12,6 +12,7 @@ NASM = nasm
 CARGO = cargo
 LD = ld
 QEMU = qemu-system-i386
+DOCKER = docker
 
 all: $(ISO)
 
@@ -31,13 +32,17 @@ $(KERNEL_BIN): $(BUILD_DIR)/boot.o $(RUST_LIB) linker.ld
 $(ISO): $(KERNEL_BIN) $(BOOT_DIR)/grub.cfg | $(BUILD_DIR)
 	cp $(KERNEL_BIN) $(ISODIR)/boot/kernel.bin
 	cp $(BOOT_DIR)/grub.cfg $(ISODIR)/boot/grub/
-	grub2-mkrescue -o $@ $(ISODIR)
+	grub-mkrescue -o $@ $(ISODIR)
 
 run: $(ISO)
 	$(QEMU) -cdrom $(ISO)
 
 debug: $(ISO)
 	$(QEMU) -cdrom $(ISO) -s -S
+
+docker:
+	$(DOCKER) build --tag kfs-build .
+	$(DOCKER) run -v .:/kfs kfs-build
 
 clean:
 	$(CARGO) clean
