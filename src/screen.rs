@@ -252,12 +252,10 @@ impl Writer {
     fn update_cursor(&self) {
         let pos = self.row_position * VGA_BUFFER_WIDTH + self.column_position;
 
-        unsafe {
-            outb(0x3D4, 0x0F);
-            outb(0x3D5, (pos & 0xFF) as u8);
-            outb(0x3D4, 0x0E);
-            outb(0x3D5, ((pos >> 8) & 0xFF) as u8);
-        }
+        outb(0x3D4, 0x0F);
+        outb(0x3D5, (pos & 0xFF) as u8);
+        outb(0x3D4, 0x0E);
+        outb(0x3D5, ((pos >> 8) & 0xFF) as u8);
     }
 
     pub fn set_color(&mut self, color_code: ColorCode) {
