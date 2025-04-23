@@ -1,5 +1,5 @@
 use crate::keyboard::KeyEvent;
-use crate::screen::{MAX_SCREEN, VGA_BUFFER_HEIGHT, WRITER};
+use crate::screen;
 use crate::{print, println};
 use core::arch::asm;
 
@@ -33,10 +33,10 @@ impl Shell {
     pub fn handle_keypress(&mut self, key_event: KeyEvent) {
         if key_event.is_function_key() {
             if let Some(fnum) = key_event.function_key_num() {
-                if fnum >= 1 && fnum <= MAX_SCREEN as u8 {
+                if fnum >= 1 && fnum <= screen::MAX_SCREEN as u8 {
                     let screen_idx = (fnum - 1) as usize;
 
-                    WRITER.lock().switch_to_screen(screen_idx);
+                    screen::switch_to_screen(screen_idx);
                     self.display_prompt();
                     return;
                 }
@@ -114,7 +114,7 @@ impl Shell {
     }
 
     fn cmd_clear(&self) {
-        for _ in 0..VGA_BUFFER_HEIGHT {
+        for _ in 0..screen::VGA_BUFFER_HEIGHT {
             println!();
         }
     }

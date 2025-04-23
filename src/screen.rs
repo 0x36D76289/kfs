@@ -219,7 +219,7 @@ impl Writer {
         &mut self.screens[self.current_screen_id]
     }
 
-    pub fn switch_to_screen(&mut self, screen_id: usize) {
+    fn switch_to_screen(&mut self, screen_id: usize) {
         if screen_id >= MAX_SCREEN {
             panic!("Tried to switch to screen {screen_id} but the max is {}", MAX_SCREEN - 1);
         }
@@ -244,6 +244,8 @@ impl Writer {
         self.column_position = self.curr_screen().column_position;
         self.color_code = self.curr_screen().color_code;
 
+        self.clear_row(self.row_position);
+        self.column_position = 0;
         self.update_cursor();
     }
 
@@ -268,4 +270,8 @@ impl fmt::Write for Writer {
         self.write_string(s);
         Ok(())
     }
+}
+
+pub fn switch_to_screen(screen_id: usize) {
+    WRITER.lock().switch_to_screen(screen_id);
 }
