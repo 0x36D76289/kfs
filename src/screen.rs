@@ -207,7 +207,7 @@ impl Writer {
         }
     }
 
-    pub fn clear_screen(&mut self) {
+    fn clear_screen(&mut self) {
         for row in 0..VGA_BUFFER_HEIGHT {
             self.clear_row(row);
         }
@@ -272,4 +272,8 @@ impl fmt::Write for Writer {
 
 pub fn switch_to_screen(screen_id: usize) {
     WRITER.lock().switch_to_screen(screen_id);
+}
+
+pub fn clear_screen() {
+    WRITER.lock().clear_screen();
 }
