@@ -1,22 +1,14 @@
 use crate::keyboard::{KeyboardState, initialize_keyboard, read_scancode};
-use crate::printk::print_error;
-use crate::screen;
 use crate::shell::Shell;
-use crate::vga::{Color, ColorCode, clear_screen};
-use crate::{printk, printkln};
+use crate::screen::{ColorCode, Color, WRITER};
+use crate::println;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn kmain() -> ! {
-    unsafe {
-        clear_screen(ColorCode::new(Color::White, Color::Black));
-    }
-
-    screen::init_screens();
-
-    printkln!("42");
-    printkln!("KFS - Kernel From Scratch");
-    printkln!("Version 0.1.0");
-    printkln!("----------------------------");
+    println!("42");
+    println!("KFS - Kernel From Scratch");
+    println!("Version 0.1.0");
+    println!("----------------------------");
 
     initialize_keyboard();
     let mut keyboard_state = KeyboardState::new();
@@ -39,22 +31,9 @@ pub extern "C" fn kmain() -> ! {
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    print_error("\nKERNEL PANIC: ");
-
-    if let Some(location) = info.location() {
-        printk!(
-            "at {}:{}:{}",
-            location.file(),
-            location.line(),
-            location.column()
-        );
-    }
-
-    let message = info.message();
-    printk!(" {}", message);
-
-    printkln!("\nSystem halted");
-
+    WRITER.lock().set_color(ColorCode::new(Color::Red, Color::Black));
+    println!("\n{info}");
+    
     loop {
         unsafe {
             core::arch::asm!("hlt", options(nomem, nostack));
