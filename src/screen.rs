@@ -88,7 +88,10 @@ struct Buffer {
 impl Buffer {
     fn new() -> Self {
         Self {
-            chars: [[ScreenChar{ ascii_character: b' ', color_code: ColorCode::new(Color::White, Color::Black) }; VGA_BUFFER_WIDTH]; VGA_BUFFER_HEIGHT]
+            chars: [[ScreenChar {
+                ascii_character: b' ',
+                color_code: ColorCode::new(Color::White, Color::Black),
+            }; VGA_BUFFER_WIDTH]; VGA_BUFFER_HEIGHT],
         }
     }
 }
@@ -98,7 +101,7 @@ struct Screen {
     column_position: usize,
     row_position: usize,
     color_code: ColorCode,
-    buffer: Buffer
+    buffer: Buffer,
 }
 
 impl Default for Screen {
@@ -107,7 +110,7 @@ impl Default for Screen {
             column_position: 0,
             row_position: 0,
             color_code: ColorCode::new(Color::White, Color::Black),
-            buffer: Buffer::new()
+            buffer: Buffer::new(),
         }
     }
 }
@@ -143,7 +146,7 @@ impl Writer {
                 let color_code = self.color_code;
                 self.buffer.chars[row][col] = ScreenChar {
                     ascii_character: byte,
-                    color_code
+                    color_code,
                 };
                 self.column_position += 1;
             }
@@ -156,7 +159,7 @@ impl Writer {
                 // printable ASCII byte or newline
                 0x20..=0x7e | b'\n' | b'\r' | b'\t' | b'\x08' => self.write_byte(byte),
                 // not part of printable ASCII range
-                _ => self.write_byte(0xfe)
+                _ => self.write_byte(0xfe),
             }
         }
         self.update_cursor();
@@ -183,11 +186,10 @@ impl Writer {
             ascii_character: b' ',
             color_code: self.color_code,
         };
-        
+
         if self.column_position > 0 {
             self.column_position -= 1;
             self.buffer.chars[self.row_position][self.column_position] = blank_char;
-
         } else if self.row_position > 0 {
             self.row_position -= 1;
             self.column_position = VGA_BUFFER_WIDTH - 1;
@@ -199,7 +201,7 @@ impl Writer {
     fn clear_row(&mut self, row: usize) {
         let blank = ScreenChar {
             ascii_character: b' ',
-            color_code: self.color_code
+            color_code: self.color_code,
         };
 
         for col in 0..VGA_BUFFER_WIDTH {
@@ -221,7 +223,10 @@ impl Writer {
 
     fn switch_to_screen(&mut self, screen_id: usize) {
         if screen_id >= MAX_SCREEN {
-            panic!("Tried to switch to screen {screen_id} but the max is {}", MAX_SCREEN - 1);
+            panic!(
+                "Tried to switch to screen {screen_id} but the max is {}",
+                MAX_SCREEN - 1
+            );
         }
 
         for row in 0..VGA_BUFFER_HEIGHT {
