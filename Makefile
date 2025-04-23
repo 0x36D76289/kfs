@@ -3,6 +3,8 @@ TARGET = i386-unknown-none
 BUILD_DIR = build
 BOOT_DIR = boot
 ISODIR = $(BUILD_DIR)/isofiles
+RUST_SRCS = $(wildcard src/*.rs)
+RUST_SRCS += Cargo.toml
 
 KERNEL_BIN = $(BUILD_DIR)/kernel.bin
 ISO = kfs.iso
@@ -23,7 +25,7 @@ $(BUILD_DIR):
 $(BUILD_DIR)/boot.o: $(BOOT_DIR)/boot.asm | $(BUILD_DIR)
 	$(NASM) -f elf32 -o $@ $<
 
-$(RUST_LIB): Cargo.toml
+$(RUST_LIB): $(RUST_SRCS)
 	$(CARGO) build -r
 
 $(KERNEL_BIN): $(BUILD_DIR)/boot.o $(RUST_LIB) linker.ld
