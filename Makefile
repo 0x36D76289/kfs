@@ -43,8 +43,8 @@ debug: $(ISO)
 	$(QEMU) -cdrom $(ISO) -s -S
 
 docker:
-	$(DOCKER) build --tag kfs-build .
-	$(DOCKER) run -v .:/kfs kfs-build
+	$(DOCKER) build --platform linux/amd64 --tag kfs-build .
+	$(DOCKER) run --rm -v .:/kfs kfs-build
 
 clean:
 	$(CARGO) clean
