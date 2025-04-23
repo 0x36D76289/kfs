@@ -127,9 +127,7 @@ impl Shell {
         println!("Stack trace:");
         let mut frame_ptr: usize;
 
-        unsafe {
-            asm!("mov {}, ebp", out(reg) frame_ptr)
-        }
+        unsafe { asm!("mov {}, ebp", out(reg) frame_ptr) }
 
         println!("  Frame pointer: 0x{:x}", frame_ptr);
 
@@ -147,23 +145,17 @@ impl Shell {
     fn cmd_halt(&self) {
         println!("System halted.");
         loop {
-            unsafe {
-                asm!("hlt", options(nomem, nostack))
-            }
+            unsafe { asm!("hlt", options(nomem, nostack)) }
         }
     }
 }
 
 fn inb(port: u16) -> u8 {
     let result: u8;
-    unsafe {
-        asm!("in al, dx", out("al") result, in("dx") port, options(nomem, nostack))
-    }
+    unsafe { asm!("in al, dx", out("al") result, in("dx") port, options(nomem, nostack)) }
     result
 }
 
 fn outb(port: u16, value: u8) {
-    unsafe {
-        asm!("out dx, al", in("dx") port, in("al") value, options(nomem, nostack))
-    }
+    unsafe { asm!("out dx, al", in("dx") port, in("al") value, options(nomem, nostack)) }
 }
