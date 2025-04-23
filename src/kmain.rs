@@ -1,3 +1,4 @@
+use core::arch::asm;
 use crate::keyboard::{KeyboardState, initialize_keyboard, read_scancode};
 use crate::shell::Shell;
 use crate::screen::{ColorCode, Color, WRITER};
@@ -23,9 +24,7 @@ pub extern "C" fn kmain() -> ! {
             }
         }
 
-        unsafe {
-            core::arch::asm!("pause");
-        }
+        unsafe { asm!("pause") }
     }
 }
 
@@ -35,8 +34,6 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("\n{info}");
     
     loop {
-        unsafe {
-            core::arch::asm!("hlt", options(nomem, nostack));
-        }
+        unsafe { asm!("hlt", options(nomem, nostack)) }
     }
 }

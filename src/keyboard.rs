@@ -249,50 +249,44 @@ impl KeyboardState {
     }
 
     fn update_leds(&self) {
-        unsafe {
-            while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
-            outb(KEYBOARD_DATA_PORT, 0xED);
+        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+        outb(KEYBOARD_DATA_PORT, 0xED);
 
-            while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
-            let led_state = ((self.scroll_lock as u8) << 0) |
-                           ((self.num_lock as u8) << 1) |
-                           ((self.caps_lock as u8) << 2);
-            outb(KEYBOARD_DATA_PORT, led_state);
-        }
+        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+        let led_state = ((self.scroll_lock as u8) << 0) |
+                        ((self.num_lock as u8) << 1) |
+                        ((self.caps_lock as u8) << 2);
+        outb(KEYBOARD_DATA_PORT, led_state);
     }
 }
 
 pub fn initialize_keyboard() {
-    unsafe {
-        // Reset the keyboard
-        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
-        outb(KEYBOARD_DATA_PORT, 0xFF);
-        
-        // Wait for ACK
-        while inb(KEYBOARD_DATA_PORT) != 0xFA {}
-        
-        // Set default parameters
-        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
-        outb(KEYBOARD_DATA_PORT, 0xF6);
-        
-        // Wait for ACK
-        while inb(KEYBOARD_DATA_PORT) != 0xFA {}
-        
-        // Enable scanning
-        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
-        outb(KEYBOARD_DATA_PORT, 0xF4);
-        
-        // Wait for ACK
-        while inb(KEYBOARD_DATA_PORT) != 0xFA {}
-    }
+    // Reset the keyboard
+    while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+    outb(KEYBOARD_DATA_PORT, 0xFF);
+    
+    // Wait for ACK
+    while inb(KEYBOARD_DATA_PORT) != 0xFA {}
+    
+    // Set default parameters
+    while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+    outb(KEYBOARD_DATA_PORT, 0xF6);
+    
+    // Wait for ACK
+    while inb(KEYBOARD_DATA_PORT) != 0xFA {}
+    
+    // Enable scanning
+    while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+    outb(KEYBOARD_DATA_PORT, 0xF4);
+    
+    // Wait for ACK
+    while inb(KEYBOARD_DATA_PORT) != 0xFA {}
 }
 
 pub fn read_scancode() -> Option<u8> {
-    unsafe {
-        if inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
-            Some(inb(KEYBOARD_DATA_PORT))
-        } else {
-            None
-        }
+    if inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
+        Some(inb(KEYBOARD_DATA_PORT))
+    } else {
+        None
     }
 }
