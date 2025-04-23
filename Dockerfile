@@ -1,6 +1,6 @@
-FROM archlinux:latest
+FROM rust:alpine
 
-RUN pacman -Syu --noconfirm rustup binutils make gcc grub libisoburn nasm mtools
+RUN apk add binutils make gcc grub-bios libisoburn nasm mtools xorriso
 
 RUN rustup default nightly
 RUN rustup component add rust-src llvm-tools
