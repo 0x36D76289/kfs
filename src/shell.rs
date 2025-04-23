@@ -114,9 +114,7 @@ impl Shell {
     }
 
     fn cmd_clear(&self) {
-        for _ in 0..screen::VGA_BUFFER_HEIGHT {
-            println!();
-        }
+        screen::clear_screen();
     }
 
     fn cmd_info(&self) {
