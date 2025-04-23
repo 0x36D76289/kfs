@@ -277,3 +277,7 @@ pub fn switch_to_screen(screen_id: usize) {
 pub fn clear_screen() {
     WRITER.lock().clear_screen();
 }
+
+pub fn change_color_code(color_code: ColorCode) {
+    WRITER.lock().color_code = color_code;
+}
