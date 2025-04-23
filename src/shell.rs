@@ -1,7 +1,6 @@
 use crate::keyboard::KeyEvent;
-use crate::screen;
-use crate::vga::VGA_HEIGHT;
-use crate::{printk, printkln};
+use crate::screen::{MAX_SCREEN, VGA_BUFFER_HEIGHT, WRITER};
+use crate::{print, println};
 use core::arch::asm;
 
 const MAX_CMD_LENGTH: usize = 256;
@@ -22,24 +21,23 @@ impl Shell {
     }
 
     pub fn init(&mut self) {
-        printkln!("KFS Shell initialized");
-        printkln!("Type 'help' for a list of commands");
+        println!("KFS Shell initialized");
+        println!("Type 'help' for a list of commands");
         self.display_prompt();
     }
 
     fn display_prompt(&self) {
-        printk!("{}", self.prompt);
+        print!("{}", self.prompt);
     }
 
     pub fn handle_keypress(&mut self, key_event: KeyEvent) {
         if key_event.is_function_key() {
             if let Some(fnum) = key_event.function_key_num() {
-                if fnum >= 1 && fnum <= screen::MAX_SCREENS as u8 {
+                if fnum >= 1 && fnum <= MAX_SCREEN as u8 {
                     let screen_idx = (fnum - 1) as usize;
 
-                    if screen::switch_to_screen(screen_idx) {
-                        self.display_prompt();
-                    }
+                    WRITER.lock().switch_to_screen(screen_idx);
+                    self.display_prompt();
                     return;
                 }
             }
@@ -52,7 +50,7 @@ impl Shell {
                 if self.buffer_pos < MAX_CMD_LENGTH - 1 {
                     self.buffer[self.buffer_pos] = ascii_digit;
                     self.buffer_pos += 1;
-                    printk!("{}", ascii_digit as char);
+                    print!("{}", ascii_digit as char);
                 }
             }
             return;
@@ -60,7 +58,7 @@ impl Shell {
 
         match key_event.key {
             b'\n' => {
-                printkln!();
+                println!();
                 self.execute_command();
                 self.buffer_pos = 0;
                 for i in 0..MAX_CMD_LENGTH {
@@ -73,14 +71,14 @@ impl Shell {
                 if self.buffer_pos > 0 {
                     self.buffer_pos -= 1;
                     self.buffer[self.buffer_pos] = 0;
-                    printk!("\x08 \x08");
+                    print!("\x08 \x08");
                 }
             }
             _ => {
                 if self.buffer_pos < MAX_CMD_LENGTH - 1 {
                     self.buffer[self.buffer_pos] = key_event.key;
                     self.buffer_pos += 1;
-                    printk!("{}", key_event.key as char);
+                    print!("{}", key_event.key as char);
                 }
             }
         }
@@ -98,59 +96,59 @@ impl Shell {
             "stacktrace" => self.cmd_stacktrace(),
             "reboot" => self.cmd_reboot(),
             "halt" => self.cmd_halt(),
-            "42" => printkln!("The answer to life, the universe, and everything!"),
+            "42" => println!("The answer to life, the universe, and everything!"),
             "" => {}
-            _ => printkln!("Unknown command: {}", cmd_str),
+            _ => println!("Unknown command: {}", cmd_str),
         }
     }
 
     fn cmd_help(&self) {
-        printkln!("Available commands:");
-        printkln!("  help       - Display this help message");
-        printkln!("  clear      - Clear the screen");
-        printkln!("  info       - Display system information");
-        printkln!("  stacktrace - Display kernel stack trace");
-        printkln!("  reboot     - Reboot the system");
-        printkln!("  halt       - Halt the system");
-        printkln!("  42         - Display the answer");
+        println!("Available commands:");
+        println!("  help       - Display this help message");
+        println!("  clear      - Clear the screen");
+        println!("  info       - Display system information");
+        println!("  stacktrace - Display kernel stack trace");
+        println!("  reboot     - Reboot the system");
+        println!("  halt       - Halt the system");
+        println!("  42         - Display the answer");
     }
 
     fn cmd_clear(&self) {
-        for _ in 0..VGA_HEIGHT {
-            printkln!();
+        for _ in 0..VGA_BUFFER_HEIGHT {
+            println!();
         }
     }
 
     fn cmd_info(&self) {
-        printkln!("KFS - Kernel From Scratch");
-        printkln!("Version: 0.1.0");
-        printkln!("Memory: Unknown");
+        println!("KFS - Kernel From Scratch");
+        println!("Version: 0.1.0");
+        println!("Memory: Unknown");
     }
 
     fn cmd_stacktrace(&self) {
-        printkln!("Stack trace:");
+        println!("Stack trace:");
         unsafe {
             let mut frame_ptr: usize;
             asm!("mov {}, ebp", out(reg) frame_ptr);
 
-            printkln!("  Frame pointer: 0x{:x}", frame_ptr);
+            println!("  Frame pointer: 0x{:x}", frame_ptr);
 
             // TODO: Implement stack trace logic
         }
     }
 
     fn cmd_reboot(&self) {
-        printkln!("Rebooting system...");
+        println!("Rebooting system...");
         unsafe {
             while inb(0x64) & 2 != 0 {}
             outb(0x64, 0xFE);
 
-            printkln!("Reboot failed!");
+            println!("Reboot failed!");
         }
     }
 
     fn cmd_halt(&self) {
-        printkln!("System halted.");
+        println!("System halted.");
         unsafe {
             loop {
                 asm!("hlt", options(nomem, nostack));
