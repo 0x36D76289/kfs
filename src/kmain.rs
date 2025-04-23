@@ -1,7 +1,7 @@
 use core::arch::asm;
 use crate::keyboard::{KeyboardState, initialize_keyboard, read_scancode};
 use crate::shell::Shell;
-use crate::screen::{ColorCode, Color, WRITER};
+use crate::screen::{self, Color, ColorCode, WRITER};
 use crate::println;
 
 #[unsafe(no_mangle)]
@@ -30,7 +30,7 @@ pub extern "C" fn kmain() -> ! {
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    WRITER.lock().set_color(ColorCode::new(Color::Red, Color::Black));
+    screen::change_color_code(ColorCode::new(Color::White, Color::Red));
     println!("\n{info}");
     
     loop {
