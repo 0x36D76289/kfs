@@ -1,7 +1,9 @@
 use crate::keyboard::KeyEvent;
 use crate::screen;
 use crate::{print, println};
+use crate::io::{inb, outb};
 use core::arch::asm;
+
 
 const MAX_CMD_LENGTH: usize = 256;
 
@@ -148,14 +150,4 @@ impl Shell {
             unsafe { asm!("hlt", options(nomem, nostack)) }
         }
     }
-}
-
-fn inb(port: u16) -> u8 {
-    let result: u8;
-    unsafe { asm!("in al, dx", out("al") result, in("dx") port, options(nomem, nostack)) }
-    result
-}
-
-fn outb(port: u16, value: u8) {
-    unsafe { asm!("out dx, al", in("dx") port, in("al") value, options(nomem, nostack)) }
 }
