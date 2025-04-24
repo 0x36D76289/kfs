@@ -1,152 +1,146 @@
 use crate::io::{inb, outb};
+use crate::keyboard::Key::{Character, Named};
 
 // PS/2 keyboard ports
 const KEYBOARD_DATA_PORT: u16 = 0x60;
 const KEYBOARD_STATUS_PORT: u16 = 0x64;
 
-// US QWERTY layout scan code table
-static SCAN_CODE_TABLE: [u8; 128] = [
-    0,  // 0x00: Error
-    27, // 0x01: Escape
-    b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', b'0', b'-', b'=',
-    b'\x08', // 0x0E: Backspace
-    b'\t',   // 0x0F: Tab
-    b'q', b'w', b'e', b'r', b't', b'y', b'u', b'i', b'o', b'p', b'[', b']',
-    b'\n', // 0x1C: Enter
-    0,     // 0x1D: Left Control
-    b'a', b's', b'd', b'f', b'g', b'h', b'j', b'k', b'l', b';', b'\'', b'`',
-    0,     // 0x2A: Left Shift
-    b'\\', // 0x2B: Backslash
-    b'z', b'x', b'c', b'v', b'b', b'n', b'm', b',', b'.', b'/', 0,    // 0x36: Right Shift
-    b'*', // 0x37: Keypad *
-    0,    // 0x38: Left Alt
-    b' ', // 0x39: Space
-    0,    // 0x3A: Caps Lock
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // 0x3B-0x44: F1-F10
-    0,    // 0x45: Num Lock
-    0,    // 0x46: Scroll Lock
-    b'7', // 0x47: Keypad 7 (Home)
-    b'8', // 0x48: Keypad 8 (Up)
-    b'9', // 0x49: Keypad 9 (PgUp)
-    b'-', // 0x4A: Keypad -
-    b'4', // 0x4B: Keypad 4 (Left)
-    b'5', // 0x4C: Keypad 5
-    b'6', // 0x4D: Keypad 6 (Right)
-    b'+', // 0x4E: Keypad +
-    b'1', // 0x4F: Keypad 1 (End)
-    b'2', // 0x50: Keypad 2 (Down)
-    b'3', // 0x51: Keypad 3 (PgDn)
-    b'0', // 0x52: Keypad 0 (Ins)
-    b'.', // 0x53: Keypad . (Del)
-    0, 0, // 0x54-0x55: Alt-SysRq, Key 0x56
-    0, // 0x56: Usually backslash/pipe on non-US keyboards
-    0, 0, // 0x57-0x58: F11-F12
-    0, 0, 0, 0, 0, 0, 0, // 0x59-0x5F: Other keys
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x60-0x6F
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x70-0x7F
-];
-
-// US QWERTY layout - uppercase/shifted
-static SHIFT_SCAN_CODE_TABLE: [u8; 128] = [
-    0,  // 0x00: Error
-    27, // 0x01: Escape
-    b'!', b'@', b'#', b'$', b'%', b'^', b'&', b'*', b'(', b')', b'_', b'+',
-    b'\x08', // 0x0E: Backspace
-    b'\t',   // 0x0F: Tab
-    b'Q', b'W', b'E', b'R', b'T', b'Y', b'U', b'I', b'O', b'P', b'{', b'}',
-    b'\n', // 0x1C: Enter
-    0,     // 0x1D: Left Control
-    b'A', b'S', b'D', b'F', b'G', b'H', b'J', b'K', b'L', b':', b'"', b'~',
-    0,    // 0x2A: Left Shift
-    b'|', // 0x2B: Backslash
-    b'Z', b'X', b'C', b'V', b'B', b'N', b'M', b'<', b'>', b'?', 0,    // 0x36: Right Shift
-    b'*', // 0x37: Keypad *
-    0,    // 0x38: Left Alt
-    b' ', // 0x39: Space
-    0,    // 0x3A: Caps Lock
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    // 0x3B-0x44: F1-F10
-    0,    // 0x45: Num Lock
-    0,    // 0x46: Scroll Lock
-    b'7', // 0x47: Keypad 7 (Home)
-    b'8', // 0x48: Keypad 8 (Up)
-    b'9', // 0x49: Keypad 9 (PgUp)
-    b'-', // 0x4A: Keypad -
-    b'4', // 0x4B: Keypad 4 (Left)
-    b'5', // 0x4C: Keypad 5
-    b'6', // 0x4D: Keypad 6 (Right)
-    b'+', // 0x4E: Keypad +
-    b'1', // 0x4F: Keypad 1 (End)
-    b'2', // 0x50: Keypad 2 (Down)
-    b'3', // 0x51: Keypad 3 (PgDn)
-    b'0', // 0x52: Keypad 0 (Ins)
-    b'.', // 0x53: Keypad . (Del)
-    0, 0, // 0x54-0x55
-    0, // 0x56
-    0, 0, // 0x57-0x58: F11-F12
-    0, 0, 0, 0, 0, 0, 0, // 0x59-0x5F
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x60-0x6F
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x70-0x7F
-];
-
 #[derive(Debug, Copy, Clone)]
-pub struct KeyEvent {
-    pub key: u8,
-    pub scancode: u8,
-    pub is_release: bool,
-    pub shift: bool,
-    pub ctrl: bool,
-    pub alt: bool,
-    pub is_extended: bool,
+pub enum NamedKey {
+    Alt,
+    CapsLock,
+    Control,
+    NumLock,
+    ScrollLock,
+    Shift,
+    Enter,
+    Tab,
+    Space,
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    ArrowUp,
+    End,
+    Home,
+    PageDown,
+    PageUp,
+    Backspace,
+    Delete,
+    Insert,
+    Paste,
+    Escape,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
 }
 
-impl KeyEvent {
-    pub fn is_function_key(&self) -> bool {
-        // F1-F12: 0x3B-0x44, 0x57-0x58
-        match self.scancode {
-            0x3B..=0x44 | 0x57..=0x58 => true,
-            _ => false,
-        }
-    }
+#[derive(Debug, Copy, Clone)]
+pub enum Key {
+    Named(NamedKey),
+    Character(char),
+}
 
-    pub fn function_key_num(&self) -> Option<u8> {
-        match self.scancode {
-            0x3B => Some(1),  // F1
-            0x3C => Some(2),  // F2
-            0x3D => Some(3),  // F3
-            0x3E => Some(4),  // F4
-            0x3F => Some(5),  // F5
-            0x40 => Some(6),  // F6
-            0x41 => Some(7),  // F7
-            0x42 => Some(8),  // F8
-            0x43 => Some(9),  // F9
-            0x44 => Some(10), // F10
-            0x57 => Some(11), // F11
-            0x58 => Some(12), // F12
-            _ => None,
-        }
-    }
+impl Key {
+    pub fn from_scan_code(scan_code: u8, shift_pressed: bool) -> Key {
+        match scan_code {
+            // Alphanumeric keys (affected by shift)
+            0x02 => Character(if shift_pressed { '!' } else { '1' }),
+            0x03 => Character(if shift_pressed { '@' } else { '2' }),
+            0x04 => Character(if shift_pressed { '#' } else { '3' }),
+            0x05 => Character(if shift_pressed { '$' } else { '4' }),
+            0x06 => Character(if shift_pressed { '%' } else { '5' }),
+            0x07 => Character(if shift_pressed { '^' } else { '6' }),
+            0x08 => Character(if shift_pressed { '&' } else { '7' }),
+            0x09 => Character(if shift_pressed { '*' } else { '8' }),
+            0x0A => Character(if shift_pressed { '(' } else { '9' }),
+            0x0B => Character(if shift_pressed { ')' } else { '0' }),
+            0x0C => Character(if shift_pressed { '_' } else { '-' }),
+            0x0D => Character(if shift_pressed { '+' } else { '=' }),
+            0x10 => Character(if shift_pressed { 'Q' } else { 'q' }),
+            0x11 => Character(if shift_pressed { 'W' } else { 'w' }),
+            0x12 => Character(if shift_pressed { 'E' } else { 'e' }),
+            0x13 => Character(if shift_pressed { 'R' } else { 'r' }),
+            0x14 => Character(if shift_pressed { 'T' } else { 't' }),
+            0x15 => Character(if shift_pressed { 'Y' } else { 'y' }),
+            0x16 => Character(if shift_pressed { 'U' } else { 'u' }),
+            0x17 => Character(if shift_pressed { 'I' } else { 'i' }),
+            0x18 => Character(if shift_pressed { 'O' } else { 'o' }),
+            0x19 => Character(if shift_pressed { 'P' } else { 'p' }),
+            0x1A => Character(if shift_pressed { '{' } else { '[' }),
+            0x1B => Character(if shift_pressed { '}' } else { ']' }),
+            0x1E => Character(if shift_pressed { 'A' } else { 'a' }),
+            0x1F => Character(if shift_pressed { 'S' } else { 's' }),
+            0x20 => Character(if shift_pressed { 'D' } else { 'd' }),
+            0x21 => Character(if shift_pressed { 'F' } else { 'f' }),
+            0x22 => Character(if shift_pressed { 'G' } else { 'g' }),
+            0x23 => Character(if shift_pressed { 'H' } else { 'h' }),
+            0x24 => Character(if shift_pressed { 'J' } else { 'j' }),
+            0x25 => Character(if shift_pressed { 'K' } else { 'k' }),
+            0x26 => Character(if shift_pressed { 'L' } else { 'l' }),
+            0x27 => Character(if shift_pressed { ':' } else { ';' }),
+            0x28 => Character(if shift_pressed { '"' } else { '\'' }),
+            0x29 => Character(if shift_pressed { '~' } else { '`' }),
+            0x2B => Character(if shift_pressed { '|' } else { '\\' }),
+            0x2C => Character(if shift_pressed { 'Z' } else { 'z' }),
+            0x2D => Character(if shift_pressed { 'X' } else { 'x' }),
+            0x2E => Character(if shift_pressed { 'C' } else { 'c' }),
+            0x2F => Character(if shift_pressed { 'V' } else { 'v' }),
+            0x30 => Character(if shift_pressed { 'B' } else { 'b' }),
+            0x31 => Character(if shift_pressed { 'N' } else { 'n' }),
+            0x32 => Character(if shift_pressed { 'M' } else { 'm' }),
+            0x33 => Character(if shift_pressed { '<' } else { ',' }),
+            0x34 => Character(if shift_pressed { '>' } else { '.' }),
+            0x35 => Character(if shift_pressed { '?' } else { '/' }),
+            0x39 => Character(' '), // Space
 
-    pub fn is_numpad_key(&self) -> bool {
-        // Keypad 0-9 and operations
-        match self.scancode {
-            0x47..=0x53 => true,
-            _ => false,
-        }
-    }
+            // Named keys (not affected by shift)
+            0x01 => Named(NamedKey::Escape),
+            0x0E => Named(NamedKey::Backspace),
+            0x0F => Named(NamedKey::Tab),
+            0x1C => Named(NamedKey::Enter),
+            0x1D => Named(NamedKey::Control),
+            0x2A => Named(NamedKey::Shift),
+            0x36 => Named(NamedKey::Shift), // Right shift
+            0x38 => Named(NamedKey::Alt),
+            0x3A => Named(NamedKey::CapsLock),
+            0x45 => Named(NamedKey::NumLock),
+            0x46 => Named(NamedKey::ScrollLock),
+            0x47 => Named(NamedKey::Home),
+            0x48 => Named(NamedKey::ArrowUp),
+            0x49 => Named(NamedKey::PageUp),
+            0x4B => Named(NamedKey::ArrowLeft),
+            0x4D => Named(NamedKey::ArrowRight),
+            0x4F => Named(NamedKey::End),
+            0x50 => Named(NamedKey::ArrowDown),
+            0x51 => Named(NamedKey::PageDown),
+            0x52 => Named(NamedKey::Insert),
+            0x53 => Named(NamedKey::Delete),
 
-    pub fn numpad_digit(&self) -> Option<u8> {
-        match self.scancode {
-            0x47 => Some(7), // Keypad 7
-            0x48 => Some(8), // Keypad 8
-            0x49 => Some(9), // Keypad 9
-            0x4B => Some(4), // Keypad 4
-            0x4C => Some(5), // Keypad 5
-            0x4D => Some(6), // Keypad 6
-            0x4F => Some(1), // Keypad 1
-            0x50 => Some(2), // Keypad 2
-            0x51 => Some(3), // Keypad 3
-            0x52 => Some(0), // Keypad 0
-            _ => None,
+            // Function keys
+            0x3B => Named(NamedKey::F1),
+            0x3C => Named(NamedKey::F2),
+            0x3D => Named(NamedKey::F3),
+            0x3E => Named(NamedKey::F4),
+            0x3F => Named(NamedKey::F5),
+            0x40 => Named(NamedKey::F6),
+            0x41 => Named(NamedKey::F7),
+            0x42 => Named(NamedKey::F8),
+            0x43 => Named(NamedKey::F9),
+            0x44 => Named(NamedKey::F10),
+            0x57 => Named(NamedKey::F11),
+            0x58 => Named(NamedKey::F12),
+
+            // Unhandled keys
+            _ => Character(scan_code as char),
         }
     }
 }
@@ -174,54 +168,38 @@ impl KeyboardState {
         }
     }
 
-    pub fn handle_scancode(&mut self, scancode: u8) -> Option<KeyEvent> {
+    pub fn handle_scancode(&mut self, scancode: u8) -> Option<Key> {
         if scancode == 0xE0 {
             self.extended = true;
             return None;
         }
 
         let is_release = scancode & 0x80 != 0;
-        let scancode = scancode & 0x7F; // Clear the high bit
+        let scan_code = scancode & 0x7F; // Clear the high bit
 
-        match scancode {
-            0x1D => {
-                // Ctrl
-                self.ctrl_pressed = !is_release;
-                return None;
-            }
-            0x2A | 0x36 => {
-                // Left/Right Shift
-                self.shift_pressed = !is_release;
-                return None;
-            }
-            0x38 => {
-                // Alt
-                self.alt_pressed = !is_release;
-                return None;
-            }
-            0x3A => {
-                // Caps Lock
+        let key = Key::from_scan_code(scan_code, self.shift_pressed);
+
+        match key {
+            Named(NamedKey::Control) => self.ctrl_pressed = !is_release,
+            Named(NamedKey::Shift) => self.shift_pressed = !is_release,
+            Named(NamedKey::Alt) => self.alt_pressed = !is_release,
+            Named(NamedKey::CapsLock) => {
                 if !is_release {
                     self.caps_lock = !self.caps_lock;
                     self.update_leds();
                 }
-                return None;
             }
-            0x45 => {
-                // Num Lock
+            Named(NamedKey::NumLock) => {
                 if !is_release {
                     self.num_lock = !self.num_lock;
                     self.update_leds();
                 }
-                return None;
             }
-            0x46 => {
-                // Scroll Lock
+            Named(NamedKey::ScrollLock) => {
                 if !is_release {
                     self.scroll_lock = !self.scroll_lock;
                     self.update_leds();
                 }
-                return None;
             }
             _ => {}
         }
@@ -231,26 +209,7 @@ impl KeyboardState {
             return None;
         }
 
-        let key = if self.shift_pressed || (self.caps_lock && scancode >= 0x10 && scancode <= 0x32)
-        {
-            SHIFT_SCAN_CODE_TABLE[scancode as usize]
-        } else {
-            SCAN_CODE_TABLE[scancode as usize]
-        };
-
-        let key_event = KeyEvent {
-            key,
-            scancode,
-            is_release,
-            shift: self.shift_pressed,
-            ctrl: self.ctrl_pressed,
-            alt: self.alt_pressed,
-            is_extended: self.extended,
-        };
-
-        self.extended = false;
-
-        Some(key_event)
+        Some(key)
     }
 
     fn update_leds(&self) {
