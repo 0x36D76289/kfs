@@ -52,7 +52,7 @@ pub enum Key {
 impl Key {
     pub fn from_scan_code(scan_code: u8, shift_pressed: bool) -> Key {
         match scan_code {
-            // Alphanumeric keys (affected by shift)
+            // Alphanumeric keys
             0x02 => Character(if shift_pressed { '!' } else { '1' }),
             0x03 => Character(if shift_pressed { '@' } else { '2' }),
             0x04 => Character(if shift_pressed { '#' } else { '3' }),
@@ -100,30 +100,37 @@ impl Key {
             0x33 => Character(if shift_pressed { '<' } else { ',' }),
             0x34 => Character(if shift_pressed { '>' } else { '.' }),
             0x35 => Character(if shift_pressed { '?' } else { '/' }),
-            0x39 => Character(' '), // Space
 
-            // Named keys (not affected by shift)
+            // Numpad
+            0x39 => Character(' '),
+            0x47 => Character('7'),
+            0x48 => Character('8'),
+            0x49 => Character('9'),
+            0x4B => Character('4'),
+            0x4C => Character('5'),
+            0x4D => Character('6'),
+            0x4F => Character('1'),
+            0x50 => Character('2'),
+            0x51 => Character('3'),
+            0x52 => Character('0'),
+            0x53 => Character('.'),
+            0x37 => Character('*'),
+            0x4A => Character('-'),
+            0x4E => Character('+'),
+            0x5C => Character('/'),
+
+            // Named keys
             0x01 => Named(NamedKey::Escape),
             0x0E => Named(NamedKey::Backspace),
             0x0F => Named(NamedKey::Tab),
             0x1C => Named(NamedKey::Enter),
             0x1D => Named(NamedKey::Control),
             0x2A => Named(NamedKey::Shift),
-            0x36 => Named(NamedKey::Shift), // Right shift
+            0x36 => Named(NamedKey::Shift),
             0x38 => Named(NamedKey::Alt),
             0x3A => Named(NamedKey::CapsLock),
             0x45 => Named(NamedKey::NumLock),
             0x46 => Named(NamedKey::ScrollLock),
-            0x47 => Named(NamedKey::Home),
-            0x48 => Named(NamedKey::ArrowUp),
-            0x49 => Named(NamedKey::PageUp),
-            0x4B => Named(NamedKey::ArrowLeft),
-            0x4D => Named(NamedKey::ArrowRight),
-            0x4F => Named(NamedKey::End),
-            0x50 => Named(NamedKey::ArrowDown),
-            0x51 => Named(NamedKey::PageDown),
-            0x52 => Named(NamedKey::Insert),
-            0x53 => Named(NamedKey::Delete),
 
             // Function keys
             0x3B => Named(NamedKey::F1),
