@@ -1,9 +1,8 @@
-use crate::keyboard::KeyEvent;
+use crate::io::{inb, outb};
+use crate::keyboard::{Key, Key::Character, Key::Named, NamedKey};
 use crate::screen;
 use crate::{print, println};
-use crate::io::{inb, outb};
 use core::arch::asm;
-
 
 const MAX_CMD_LENGTH: usize = 256;
 
@@ -32,34 +31,33 @@ impl Shell {
         print!("{}", self.prompt);
     }
 
-    pub fn handle_keypress(&mut self, key_event: KeyEvent) {
-        if key_event.is_function_key() {
-            if let Some(fnum) = key_event.function_key_num() {
-                if fnum >= 1 && fnum <= screen::MAX_SCREEN as u8 {
-                    let screen_idx = (fnum - 1) as usize;
+    fn switch_to_screen(&self, screen_id: usize) {
+        screen::switch_to_screen(screen_id);
+        self.display_prompt();
+    }
 
-                    screen::switch_to_screen(screen_idx);
-                    self.display_prompt();
-                    return;
+    fn write_char(&mut self, c: char) {
+        if self.buffer_pos < MAX_CMD_LENGTH - 1 {
+            self.buffer[self.buffer_pos] = c as u8;
+            self.buffer_pos += 1;
+            print!("{}", c);
+        }
+    }
+
+    pub fn handle_keypress(&mut self, key: Key) {
+        match key {
+            Named(NamedKey::F1) => self.switch_to_screen(0),
+            Named(NamedKey::F2) => self.switch_to_screen(1),
+            Named(NamedKey::F3) => self.switch_to_screen(2),
+            Named(NamedKey::F4) => self.switch_to_screen(3),
+            Named(NamedKey::Backspace) => {
+                if self.buffer_pos > 0 {
+                    self.buffer_pos -= 1;
+                    self.buffer[self.buffer_pos] = 0;
+                    print!("\x08 \x08");
                 }
             }
-            return;
-        }
-
-        if key_event.is_numpad_key() {
-            if let Some(digit) = key_event.numpad_digit() {
-                let ascii_digit = b'0' + digit;
-                if self.buffer_pos < MAX_CMD_LENGTH - 1 {
-                    self.buffer[self.buffer_pos] = ascii_digit;
-                    self.buffer_pos += 1;
-                    print!("{}", ascii_digit as char);
-                }
-            }
-            return;
-        }
-
-        match key_event.key {
-            b'\n' => {
+            Named(NamedKey::Enter) => {
                 println!();
                 self.execute_command();
                 self.buffer_pos = 0;
@@ -68,21 +66,13 @@ impl Shell {
                 }
                 self.display_prompt();
             }
-            b'\x08' => {
-                // Backspace
-                if self.buffer_pos > 0 {
-                    self.buffer_pos -= 1;
-                    self.buffer[self.buffer_pos] = 0;
-                    print!("\x08 \x08");
+            Named(NamedKey::Tab) => {
+                for _ in 0..4 {
+                    self.write_char(' ')
                 }
             }
-            _ => {
-                if self.buffer_pos < MAX_CMD_LENGTH - 1 {
-                    self.buffer[self.buffer_pos] = key_event.key;
-                    self.buffer_pos += 1;
-                    print!("{}", key_event.key as char);
-                }
-            }
+            Character(c) => self.write_char(c),
+            _ => {}
         }
     }
 
