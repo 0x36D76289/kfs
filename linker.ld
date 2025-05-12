@@ -2,19 +2,14 @@ ENTRY(start)
 
 SECTIONS {
     . = 1M;
-    
-    .boot :
+
+    .boot : ALIGN(4K)
     {
         KEEP(*(.multiboot_header))
     }
-    
-    .text :
+
+    .text BLOCK(4K) : ALIGN(4K)
     {
-        *(.text .text.*)
-    }
-    
-    .bss :
-    {
-        *(.bss .bss.*)
+        *(.text)
     }
 }

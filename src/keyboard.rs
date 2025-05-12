@@ -169,7 +169,7 @@ impl KeyboardState {
             ctrl_pressed: false,
             alt_pressed: false,
             caps_lock: false,
-            num_lock: true, // Default on
+            num_lock: true,
             scroll_lock: false,
             extended: false,
         }

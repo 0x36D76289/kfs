@@ -85,7 +85,7 @@ impl Shell {
             "help" => self.cmd_help(),
             "clear" => self.cmd_clear(),
             "info" => self.cmd_info(),
-            "stacktrace" => self.cmd_stacktrace(),
+            "trigger_panic" => self.trigger_panic(),
             "reboot" => self.cmd_reboot(),
             "halt" => self.cmd_halt(),
             "42" => println!("The answer to life, the universe, and everything!"),
@@ -96,13 +96,13 @@ impl Shell {
 
     fn cmd_help(&self) {
         println!("Available commands:");
-        println!("  help       - Display this help message");
-        println!("  clear      - Clear the screen");
-        println!("  info       - Display system information");
-        println!("  stacktrace - Display kernel stack trace");
-        println!("  reboot     - Reboot the system");
-        println!("  halt       - Halt the system");
-        println!("  42         - Display the answer");
+        println!("  help          - Display this help message");
+        println!("  clear         - Clear the screen");
+        println!("  info          - Display system information");
+        println!("  trigger_panic - Trigger a panic for testing");
+        println!("  reboot        - Reboot the system");
+        println!("  halt          - Halt the system");
+        println!("  42            - Display the answer");
     }
 
     fn cmd_clear(&self) {
@@ -115,15 +115,9 @@ impl Shell {
         println!("Memory: Unknown");
     }
 
-    fn cmd_stacktrace(&self) {
-        println!("Stack trace:");
-        let mut frame_ptr: usize;
-
-        unsafe { asm!("mov {}, ebp", out(reg) frame_ptr) }
-
-        println!("  Frame pointer: 0x{:x}", frame_ptr);
-
-        // TODO: Implement stack trace logic
+    fn trigger_panic(&self) {
+        println!("Triggering panic...");
+        panic!("This is a test panic!");
     }
 
     fn cmd_reboot(&self) {
