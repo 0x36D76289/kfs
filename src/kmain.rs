@@ -1,3 +1,4 @@
+use crate::gdt;
 use crate::keyboard::{KeyboardState, initialize_keyboard, read_scancode};
 use crate::println;
 use crate::screen::{self, Color, ColorCode};
@@ -10,6 +11,9 @@ pub extern "C" fn kmain() -> ! {
     println!("KFS - Kernel From Scratch");
     println!("Version 0.1.0");
     println!("----------------------------");
+
+    // Initialize GDT first
+    gdt::init_gdt();
 
     initialize_keyboard();
     let mut keyboard_state = KeyboardState::new();

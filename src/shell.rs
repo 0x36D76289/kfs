@@ -1,3 +1,4 @@
+use crate::gdt;
 use crate::io::{inb, outb};
 use crate::keyboard::{Key, Key::Character, Key::Named, NamedKey};
 use crate::screen;
@@ -85,6 +86,7 @@ impl Shell {
             "help" => self.cmd_help(),
             "clear" => self.cmd_clear(),
             "info" => self.cmd_info(),
+            "stack" => self.cmd_stack(),
             "trigger_panic" => self.trigger_panic(),
             "reboot" => self.cmd_reboot(),
             "halt" => self.cmd_halt(),
@@ -99,6 +101,7 @@ impl Shell {
         println!("  help          - Display this help message");
         println!("  clear         - Clear the screen");
         println!("  info          - Display system information");
+        println!("  stack         - Print kernel stack information");
         println!("  trigger_panic - Trigger a panic for testing");
         println!("  reboot        - Reboot the system");
         println!("  halt          - Halt the system");
@@ -133,5 +136,9 @@ impl Shell {
         loop {
             unsafe { asm!("hlt", options(nomem, nostack)) }
         }
+    }
+
+    fn cmd_stack(&self) {
+        gdt::print_kernel_stack();
     }
 }
