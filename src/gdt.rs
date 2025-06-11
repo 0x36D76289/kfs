@@ -157,6 +157,12 @@ pub fn print_kernel_stack() {
 
     while frame_ptr != 0 && frame_count < 10 {
         unsafe {
+            // Vérification basique de la validité du pointeur
+            if frame_ptr < 0x1000 || frame_ptr > 0x80000000 {
+                println!("  Invalid frame pointer: 0x{:08X}", frame_ptr);
+                break;
+            }
+            
             let next_frame = *(frame_ptr as *const u32);
             let return_addr = *((frame_ptr + 4) as *const u32);
 
@@ -178,6 +184,11 @@ pub fn print_kernel_stack() {
     for i in 0..8 {
         unsafe {
             let addr = esp + (i * 4);
+            // Vérification basique pour éviter les accès invalides
+            if addr < 0x1000 || addr > 0x80000000 {
+                println!("  0x{:08X}: <invalid address>", addr);
+                continue;
+            }
             let value = *(addr as *const u32);
             println!("  0x{:08X}: 0x{:08X}", addr, value);
         }

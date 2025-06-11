@@ -5,7 +5,7 @@ use crate::screen::{self, Color, ColorCode};
 use crate::shell::Shell;
 use core::arch::asm;
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn kmain() -> ! {
     println!("42");
     println!("KFS - Kernel From Scratch");
