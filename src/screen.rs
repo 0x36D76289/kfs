@@ -196,6 +196,7 @@ impl Writer {
 
             self.buffer.chars[self.row_position][self.column_position] = blank_char;
         }
+        self.update_cursor();
     }
 
     fn clear_row(&mut self, row: usize) {
@@ -248,7 +249,7 @@ impl Writer {
         self.row_position = self.curr_screen().row_position;
         self.column_position = self.curr_screen().column_position;
         self.color_code = self.curr_screen().color_code;
-
+        
         self.clear_row(self.row_position);
         self.column_position = 0;
         self.update_cursor();

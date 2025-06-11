@@ -55,7 +55,7 @@ impl Shell {
                 if self.buffer_pos > 0 {
                     self.buffer_pos -= 1;
                     self.buffer[self.buffer_pos] = 0;
-                    print!("\x08 \x08");
+                    print!("\x08");
                 }
             }
             Named(NamedKey::Enter) => {
@@ -69,7 +69,11 @@ impl Shell {
             }
             Named(NamedKey::Tab) => {
                 for _ in 0..4 {
-                    self.write_char(' ')
+                    if self.buffer_pos < MAX_CMD_LENGTH - 1 {
+                        self.buffer[self.buffer_pos] = b' ';
+                        self.buffer_pos += 1;
+                        print!(" ");
+                    }
                 }
             }
             Character(c) => self.write_char(c),

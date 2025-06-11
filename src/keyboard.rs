@@ -216,14 +216,31 @@ impl KeyboardState {
             return None;
         }
 
+        self.extended = false;
         Some(key)
     }
 
     fn update_leds(&self) {
-        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+        // Wait for keyboard to be ready with timeout
+        let mut timeout = 10000;
+        while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
+            timeout -= 1;
+        }
+        if timeout == 0 {
+            return; // Timeout - skip LED update
+        }
+        
         outb(KEYBOARD_DATA_PORT, 0xED);
 
-        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+        // Wait for ACK with timeout
+        timeout = 10000;
+        while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
+            timeout -= 1;
+        }
+        if timeout == 0 {
+            return; // Timeout - skip LED update
+        }
+        
         let led_state = ((self.scroll_lock as u8) << 0)
             | ((self.num_lock as u8) << 1)
             | ((self.caps_lock as u8) << 2);
@@ -232,26 +249,61 @@ impl KeyboardState {
 }
 
 pub fn initialize_keyboard() {
-    // Reset the keyboard
-    while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+    // Reset the keyboard with timeout
+    let mut timeout = 10000;
+    while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
+        timeout -= 1;
+    }
+    if timeout == 0 {
+        return; // Skip initialization if keyboard not responding
+    }
+    
     outb(KEYBOARD_DATA_PORT, 0xFF);
 
-    // Wait for ACK
-    while inb(KEYBOARD_DATA_PORT) != 0xFA {}
+    // Wait for ACK with timeout
+    timeout = 10000;
+    while timeout > 0 && inb(KEYBOARD_DATA_PORT) != 0xFA {
+        timeout -= 1;
+        if timeout % 100 == 0 && inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
+            inb(KEYBOARD_DATA_PORT); // Clear buffer
+        }
+    }
 
     // Set default parameters
-    while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
-    outb(KEYBOARD_DATA_PORT, 0xF6);
+    timeout = 10000;
+    while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
+        timeout -= 1;
+    }
+    if timeout > 0 {
+        outb(KEYBOARD_DATA_PORT, 0xF6);
 
-    // Wait for ACK
-    while inb(KEYBOARD_DATA_PORT) != 0xFA {}
+        // Wait for ACK
+        timeout = 10000;
+        while timeout > 0 && inb(KEYBOARD_DATA_PORT) != 0xFA {
+            timeout -= 1;
+            if timeout % 100 == 0 && inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
+                inb(KEYBOARD_DATA_PORT); // Clear buffer
+            }
+        }
+    }
 
     // Enable scanning
-    while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
-    outb(KEYBOARD_DATA_PORT, 0xF4);
+    timeout = 10000;
+    while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
+        timeout -= 1;
+    }
+    if timeout > 0 {
+        outb(KEYBOARD_DATA_PORT, 0xF4);
 
-    // Wait for ACK
-    while inb(KEYBOARD_DATA_PORT) != 0xFA {}
+        // Wait for ACK
+        timeout = 10000;
+        while timeout > 0 && inb(KEYBOARD_DATA_PORT) != 0xFA {
+            timeout -= 1;
+            if timeout % 100 == 0 && inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
+                inb(KEYBOARD_DATA_PORT); // Clear buffer
+            }
+        }
+    }
 }
 
 pub fn read_scancode() -> Option<u8> {
