@@ -5,6 +5,11 @@ pub fn outb(port: u16, value: u8) {
     unsafe { asm!("out dx, al", in("dx") port, in("al") value, options(nomem, nostack)) }
 }
 
+// Output a word (16-bit) to a port
+pub fn outw(port: u16, value: u16) {
+    unsafe { asm!("out dx, ax", in("dx") port, in("ax") value, options(nomem, nostack)) }
+}
+
 // Input a byte from a port
 pub fn inb(port: u16) -> u8 {
     let result: u8;

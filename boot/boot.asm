@@ -5,8 +5,8 @@ header_start:
     dd 0xe85250d6                ; Multiboot2 magic number
     dd 0                         ; Architecture (0 = i386)
     dd header_end - header_start ; Header length
-    ; Checksum
-    dd 0x100000000 - (0xe85250d6 + 0 + (header_end - header_start))
+    ; Checksum - must make magic + arch + length + checksum = 0
+    dd -(0xe85250d6 + 0 + (header_end - header_start))
     
     ; End tag
     dw 0    ; Type
