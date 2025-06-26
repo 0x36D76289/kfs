@@ -5,6 +5,16 @@ use crate::keyboard::Key::{Character, Named};
 const KEYBOARD_DATA_PORT: u16 = 0x60;
 const KEYBOARD_STATUS_PORT: u16 = 0x64;
 
+// PS/2 keyboard special responses
+const ACK: u8 = 0xFA;
+const RESEND: u8 = 0xFE;
+const ERROR: u8 = 0xFC;
+const SELF_TEST_PASSED: u8 = 0xAA;
+const SELF_TEST_FAILED2: u8 = 0xFD;
+
+// Maximum retries for keyboard commands
+const MAX_RETRIES: u8 = 3;
+
 #[derive(Debug, Copy, Clone)]
 pub enum NamedKey {
     Alt,
@@ -181,7 +191,7 @@ impl KeyboardState {
             return None;
         }
 
-        let is_release = scancode & 0x80 != 0;
+        let is_release = scancode & 0x80 != 0; // Check if this is a release scancode
         let scan_code = scancode & 0x7F; // Clear the high bit
 
         let key = Key::from_scan_code(scan_code, self.shift_pressed);
@@ -216,31 +226,16 @@ impl KeyboardState {
             return None;
         }
 
-        self.extended = false;
         Some(key)
     }
 
     fn update_leds(&self) {
-        // Wait for keyboard to be ready with timeout
-        let mut timeout = 10000;
-        while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
-            timeout -= 1;
-        }
-        if timeout == 0 {
-            return; // Timeout - skip LED update
-        }
-        
+        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
         outb(KEYBOARD_DATA_PORT, 0xED);
 
-        // Wait for ACK with timeout
-        timeout = 10000;
-        while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
-            timeout -= 1;
-        }
-        if timeout == 0 {
-            return; // Timeout - skip LED update
-        }
-        
+        // Wait for the keyboard to be ready
+        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 {}
+        // Set the LED state based on the current lock states
         let led_state = ((self.scroll_lock as u8) << 0)
             | ((self.num_lock as u8) << 1)
             | ((self.caps_lock as u8) << 2);
@@ -248,67 +243,90 @@ impl KeyboardState {
     }
 }
 
-pub fn initialize_keyboard() {
-    // Reset the keyboard with timeout
-    let mut timeout = 10000;
-    while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
-        timeout -= 1;
-    }
-    if timeout == 0 {
-        return; // Skip initialization if keyboard not responding
-    }
-    
-    outb(KEYBOARD_DATA_PORT, 0xFF);
-
-    // Wait for ACK with timeout
-    timeout = 10000;
-    while timeout > 0 && inb(KEYBOARD_DATA_PORT) != 0xFA {
-        timeout -= 1;
-        if timeout % 100 == 0 && inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
-            inb(KEYBOARD_DATA_PORT); // Clear buffer
+fn send_keyboard_command(command: u8) -> bool {
+    for _ in 0..MAX_RETRIES {
+        // Wait for keyboard to be ready
+        let mut timeout = 0xFFFF;
+        while inb(KEYBOARD_STATUS_PORT) & 2 != 0 && timeout > 0 {
+            timeout -= 1;
         }
+
+        if timeout == 0 {
+            continue;
+        }
+
+        // Send the command
+        outb(KEYBOARD_DATA_PORT, command);
+
+        // Wait for response
+        timeout = 0xFFFF;
+        while inb(KEYBOARD_STATUS_PORT) & 1 == 0 && timeout > 0 {
+            timeout -= 1;
+        }
+
+        if timeout == 0 {
+            continue; // No response, try again
+        }
+
+        let response = inb(KEYBOARD_DATA_PORT);
+        match response {
+            ACK => return true,                        // Command acknowledged
+            RESEND => continue,                        // Resend command
+            ERROR | SELF_TEST_FAILED2 => return false, // Self test failed or error
+            _ => continue,                             // Unexpected response...
+        }
+    }
+    false // All retries failed
+}
+
+pub fn initialize_keyboard() -> bool {
+    // Reset the keyboard
+    if !send_keyboard_command(0xFF) {
+        return false;
+    }
+
+    // Wait for self-test result
+    let mut timeout = 0xFFFF;
+    while inb(KEYBOARD_STATUS_PORT) & 1 == 0 && timeout > 0 {
+        timeout -= 1;
+    }
+
+    if timeout == 0 {
+        return false;
+    }
+
+    let self_test_result = inb(KEYBOARD_DATA_PORT);
+    if self_test_result != SELF_TEST_PASSED {
+        return false;
     }
 
     // Set default parameters
-    timeout = 10000;
-    while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
-        timeout -= 1;
-    }
-    if timeout > 0 {
-        outb(KEYBOARD_DATA_PORT, 0xF6);
-
-        // Wait for ACK
-        timeout = 10000;
-        while timeout > 0 && inb(KEYBOARD_DATA_PORT) != 0xFA {
-            timeout -= 1;
-            if timeout % 100 == 0 && inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
-                inb(KEYBOARD_DATA_PORT); // Clear buffer
-            }
-        }
+    if !send_keyboard_command(0xF6) {
+        return false;
     }
 
     // Enable scanning
-    timeout = 10000;
-    while timeout > 0 && (inb(KEYBOARD_STATUS_PORT) & 2 != 0) {
-        timeout -= 1;
+    if !send_keyboard_command(0xF4) {
+        return false;
     }
-    if timeout > 0 {
-        outb(KEYBOARD_DATA_PORT, 0xF4);
 
-        // Wait for ACK
-        timeout = 10000;
-        while timeout > 0 && inb(KEYBOARD_DATA_PORT) != 0xFA {
-            timeout -= 1;
-            if timeout % 100 == 0 && inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
-                inb(KEYBOARD_DATA_PORT); // Clear buffer
-            }
-        }
-    }
+    true
 }
 
 pub fn read_scancode() -> Option<u8> {
     if inb(KEYBOARD_STATUS_PORT) & 1 != 0 {
-        Some(inb(KEYBOARD_DATA_PORT))
+        let scancode = inb(KEYBOARD_DATA_PORT);
+
+        // Handle special bytes according to OSDev wiki
+        match scancode {
+            0x00 | 0xFF => None, // Key detection error or buffer overrun
+            0xAA => None,        // Self test passed (ignore during normal operation)
+            0xEE => None,        // Echo response (ignore unless we sent echo command)
+            0xFA => None,        // ACK (ignore unless we're waiting for command response)
+            0xFC | 0xFD => None, // Self test failed (ignore during normal operation)
+            0xFE => None,        // Resend (ignore unless we're waiting for command response)
+            _ => Some(scancode), // Valid scancode
+        }
     } else {
         None
     }

@@ -2,20 +2,10 @@ use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use crate::io::outb;
+use crate::io::{inb, outb};
 
-// static writer
-// We use lazy static so that the value is computed at runtime instead of compile time. This allows us to use the raw pointer of the vga buffer
-// The spin mutex is used to make the static mutable and safe
 lazy_static! {
-    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
-        screens: [Screen::default(); MAX_SCREEN],
-        current_screen_id: 0,
-        column_position: 0,
-        row_position: 0,
-        color_code: ColorCode::new(Color::White, Color::Black),
-        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-    });
+    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer::new());
 }
 
 #[macro_export]
@@ -57,7 +47,7 @@ pub enum Color {
     White = 15,
 }
 
-// The backgroud and foreground color contained in 8 bits
+/// The backgroud and foreground color contained in 8 bits
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct ColorCode(u8);
@@ -125,6 +115,24 @@ pub struct Writer {
 }
 
 impl Writer {
+    /// Initialize a new Writer with proper cursor setup
+    pub fn new() -> Self {
+        let writer = Writer {
+            screens: [Screen::default(); MAX_SCREEN],
+            current_screen_id: 0,
+            column_position: 0,
+            row_position: 0,
+            color_code: ColorCode::new(Color::White, Color::Black),
+            buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+        };
+        
+        // Enable hardware cursor with default scanlines (14-15 for typical VGA)
+        writer.enable_cursor(14, 15);
+        writer.update_cursor();
+        writer
+    }
+
+    /// Create a new Writer instance, clearing the screen
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.new_line(),
@@ -153,6 +161,7 @@ impl Writer {
         }
     }
 
+    /// Write a string to the screen, handling non-printable characters
     pub fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
             match byte {
@@ -165,6 +174,7 @@ impl Writer {
         self.update_cursor();
     }
 
+    /// Write a single character to the screen
     fn new_line(&mut self) {
         if self.row_position < VGA_BUFFER_HEIGHT - 1 {
             self.row_position += 1;
@@ -179,8 +189,10 @@ impl Writer {
             self.clear_row(VGA_BUFFER_HEIGHT - 1);
             self.column_position = 0;
         }
+        self.update_cursor();
     }
 
+    /// Handle backspace by removing the last character
     fn backspace(&mut self) {
         let blank_char = ScreenChar {
             ascii_character: b' ',
@@ -196,9 +208,9 @@ impl Writer {
 
             self.buffer.chars[self.row_position][self.column_position] = blank_char;
         }
-        self.update_cursor();
     }
 
+    /// Clear a specific row by filling it with blank characters
     fn clear_row(&mut self, row: usize) {
         let blank = ScreenChar {
             ascii_character: b' ',
@@ -210,6 +222,7 @@ impl Writer {
         }
     }
 
+    /// Clear the entire screen
     fn clear_screen(&mut self) {
         for row in 0..VGA_BUFFER_HEIGHT {
             self.clear_row(row);
@@ -218,10 +231,12 @@ impl Writer {
         self.column_position = 0;
     }
 
+    /// Get a mutable reference to the current screen
     fn curr_screen(&mut self) -> &mut Screen {
         &mut self.screens[self.current_screen_id]
     }
 
+    /// Switch to a different screen by ID
     fn switch_to_screen(&mut self, screen_id: usize) {
         if screen_id >= MAX_SCREEN {
             panic!(
@@ -249,12 +264,13 @@ impl Writer {
         self.row_position = self.curr_screen().row_position;
         self.column_position = self.curr_screen().column_position;
         self.color_code = self.curr_screen().color_code;
-        
+
         self.clear_row(self.row_position);
         self.column_position = 0;
         self.update_cursor();
     }
 
+    /// Update the hardware cursor position based on current row and column
     fn update_cursor(&self) {
         let pos = self.row_position * VGA_BUFFER_WIDTH + self.column_position;
 
@@ -264,11 +280,37 @@ impl Writer {
         outb(0x3D5, ((pos >> 8) & 0xFF) as u8);
     }
 
+    /// Enable hardware cursor with specified start and end scanlines
+    pub fn enable_cursor(&self, cursor_start: u8, cursor_end: u8) {
+        outb(0x3D4, 0x0A);
+        outb(0x3D5, (inb(0x3D5) & 0xC0) | cursor_start);
+
+        outb(0x3D4, 0x0B);
+        outb(0x3D5, (inb(0x3D5) & 0xE0) | cursor_end);
+    }
+
+    /// Disable hardware cursor
+    pub fn disable_cursor(&self) {
+        outb(0x3D4, 0x0A);
+        outb(0x3D5, 0x20);
+    }
+
+    /// Get current cursor position
+    pub fn get_cursor_position(&self) -> u16 {
+        let mut pos: u16 = 0;
+        outb(0x3D4, 0x0F);
+        pos |= inb(0x3D5) as u16;
+        outb(0x3D4, 0x0E);
+        pos |= (inb(0x3D5) as u16) << 8;
+        pos
+    }
+
     pub fn set_color(&mut self, color_code: ColorCode) {
         self.color_code = color_code;
     }
 }
 
+/// Implement fmt::Write for Writer to allow using it with format! macros
 impl fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_string(s);
@@ -276,14 +318,37 @@ impl fmt::Write for Writer {
     }
 }
 
+/// Write a byte to the current screen
 pub fn switch_to_screen(screen_id: usize) {
     WRITER.lock().switch_to_screen(screen_id);
 }
 
+/// Clear the current screen
 pub fn clear_screen() {
     WRITER.lock().clear_screen();
 }
 
+/// Change the color code for the current screen
 pub fn change_color_code(color_code: ColorCode) {
     WRITER.lock().color_code = color_code;
+}
+
+/// Enable hardware cursor with default settings
+pub fn enable_cursor() {
+    WRITER.lock().enable_cursor(14, 15);
+}
+
+/// Enable hardware cursor with custom scanlines
+pub fn enable_cursor_custom(start: u8, end: u8) {
+    WRITER.lock().enable_cursor(start, end);
+}
+
+/// Disable hardware cursor
+pub fn disable_cursor() {
+    WRITER.lock().disable_cursor();
+}
+
+/// Get current cursor position
+pub fn get_cursor_position() -> u16 {
+    WRITER.lock().get_cursor_position()
 }

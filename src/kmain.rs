@@ -1,21 +1,27 @@
-use crate::gdt;
 use crate::keyboard::{KeyboardState, initialize_keyboard, read_scancode};
 use crate::println;
 use crate::screen::{self, Color, ColorCode};
 use crate::shell::Shell;
 use core::arch::asm;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn kmain() -> ! {
     println!("42");
-    println!("KFS - Kernel From Scratch");
-    println!("Version 0.1.0");
+    println!("KFS_2 - Global Descriptor Table & Stack");
+    println!("Version 2.0.0");
     println!("----------------------------");
 
-    // Initialize GDT first
-    gdt::init_gdt();
+    crate::gdt::init();
+    
+    println!("Initial system state:");
+    crate::stack_trace::print_stack_trace_with_title("Boot Stack Trace");
 
-    initialize_keyboard();
+    if !initialize_keyboard() {
+        println!("Warning: Keyboard initialization failed!");
+    } else {
+        println!("Keyboard initialized successfully.");
+    }
+    
     let mut keyboard_state = KeyboardState::new();
 
     let mut shell = Shell::new();
@@ -35,9 +41,12 @@ pub extern "C" fn kmain() -> ! {
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     screen::change_color_code(ColorCode::new(Color::White, Color::Red));
-    println!("\n{info}");
-
-    loop {
-        unsafe { asm!("hlt", options(nomem, nostack)) }
-    }
+    println!("\n=== KERNEL PANIC ===");
+    println!("{info}");
+    
+    // Show stack trace on panic
+    crate::stack_trace::print_stack_trace_with_title("Panic Stack Trace");
+    
+    // Emergency halt
+    crate::power::emergency_halt();
 }
