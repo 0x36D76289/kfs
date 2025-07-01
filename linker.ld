@@ -3,6 +3,14 @@ ENTRY(start)
 SECTIONS {
     . = 1M;
 
+    /* GDT section at required address 0x00000800 */
+    . = 0x800;
+    .gdt : {
+        *(.gdt)
+    }
+
+    . = 1M;
+
     .text BLOCK(4K) : ALIGN(4K)
     {
         KEEP(*(.multiboot_header))

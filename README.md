@@ -1,33 +1,42 @@
-# KFS - Kernel From Scratch
-KFS is a simple kernel written in Rust that implements basic functionality needed for an operating system.
+# KFS - Global Descriptor Table & Stack
 
-## Features
-- Custom bootloader using Multiboot2
-- VGA text mode interface with multiple virtual screens
-- PS/2 keyboard driver with US QWERTY layout support
-- Simple shell with basic commands
-- Memory-safe implementation using Rust
+A kernel implementing a Global Descriptor Table (GDT) and stack management system according to the KFS project specifications.
 
-## Commands
-The shell supports the following commands:
+## Shell Commands
 
 - `help` - Display available commands
-- `clear` - Clear the screen
-- `info` - Display system information
-- `stacktrace` - Show kernel stack trace
+- `clear` - Clear the screen  
+- `info` - Display system information (GDT, stack pointers)
+- `stacktrace` - Show current kernel stack trace
+- `stack` - Show detailed stack information with memory dump
+- `gdt` - Display complete GDT information
+- `gdttest` - Test GDT functionality and segment registers
+- `trigger_panic` - Test panic handler with stack trace
 - `reboot` - Reboot the system
+- `shutdown` - Shutdown the system  
 - `halt` - Halt the system
+- `42` - Display the answer to everything
 
-## Usage
-You can switch between multiple virtual screens using function keys F1-F4.
+## Build Requirements
 
-## Building
-Requirements
-- Rust (nightly)
-- NASM assembler
-- GRUB2 (for grub-mkrescue)
-- xorriso (for ISO creation)
+- Rust with `i386-unknown-none` target
+- NASM (Netwide Assembler)
+- GNU Linker (ld)
+- GRUB utilities (grub-mkrescue)
 - QEMU (for testing)
+
+## Build Instructions
+
+```bash
+# Build the kernel
+make
+
+# Run in QEMU
+qemu-system-i386 -cdrom kfs.iso -boot d -m 512
+
+# Or use the test script  
+./test_kernel.sh
+```
 
 Building with Make
 ```sh
