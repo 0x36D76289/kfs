@@ -273,7 +273,7 @@ fn send_keyboard_command(command: u8) -> bool {
             ACK => return true,                        // Command acknowledged
             RESEND => continue,                        // Resend command
             ERROR | SELF_TEST_FAILED2 => return false, // Self test failed or error
-            _ => continue,                             // Unexpected response...
+            _ => continue,                             // Fin frérot, try again
         }
     }
     false // All retries failed

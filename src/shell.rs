@@ -97,6 +97,7 @@ impl Shell {
             "stacktrace" => self.cmd_stacktrace(),
             "stack" => self.cmd_stack_info(),
             "gdt" => self.cmd_gdt_info(),
+            "gdttest" => self.cmd_gdt_test(),
             "trigger_panic" => self.trigger_panic(),
             "reboot" => self.cmd_reboot(),
             "shutdown" => self.cmd_shutdown(),
@@ -116,6 +117,7 @@ impl Shell {
         println!("  stacktrace    - Show kernel stack trace");
         println!("  stack         - Show detailed stack information");
         println!("  gdt           - Show GDT information");
+        println!("  gdttest       - Test GDT functionality");
         println!("  trigger_panic - Trigger a panic for testing");
         println!("  reboot        - Reboot the system");
         println!("  shutdown      - Shutdown the system");
@@ -141,8 +143,12 @@ impl Shell {
         println!("Base Pointer:  0x{:08X}", ebp);
         
         // Show GDT info
-        let (gdt_base, gdt_size) = crate::gdt::get_gdt_info();
-        println!("GDT Base: 0x{:08X}, Size: {} entries", gdt_base, gdt_size);
+        if let Some(gdt) = crate::gdt::get_gdt() {
+            println!("GDT Base: 0x{:08X}", gdt as *const _ as u32);
+            println!("GDT loaded and active");
+        } else {
+            println!("GDT not initialized");
+        }
     }
 
     /// Print the current stack trace
@@ -152,13 +158,21 @@ impl Shell {
 
     /// Print detailed stack information
     fn cmd_stack_info(&self) {
-        crate::stack_trace::print_stack_info();
+        crate::stack_trace::print_stack_trace_with_title("Shell Stack Trace");
     }
 
     /// Print GDT information
     fn cmd_gdt_info(&self) {
-        let gdt = crate::gdt::Gdt::new();
-        gdt.print_info();
+        if let Some(gdt) = crate::gdt::get_gdt() {
+            gdt.print_gdt_info();
+        } else {
+            println!("GDT not initialized");
+        }
+    }
+
+    /// Test GDT functionality
+    fn cmd_gdt_test(&self) {
+        crate::gdt::test_gdt_functionality();
     }
 
     /// Trigger a panic for testing purposes

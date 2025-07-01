@@ -13,6 +13,9 @@ pub extern "C" fn kmain() -> ! {
 
     crate::gdt::init();
     
+    // Test GDT functionality
+    crate::gdt::test_gdt_functionality();
+    
     println!("Initial system state:");
     crate::stack_trace::print_stack_trace_with_title("Boot Stack Trace");
 

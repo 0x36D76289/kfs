@@ -1,154 +1,20 @@
 use core::arch::asm;
 
-/// Maximum number of stack frames to trace
-const MAX_STACK_FRAMES: usize = 32;
-
-/// Stack frame structure for x86 CDECL calling convention
+// Stack frame structure for tracing
 #[repr(C)]
-struct StackFrame {
-    ebp: *const StackFrame,  // Previous frame pointer
-    eip: u32,                // Return address
+#[derive(Debug, Clone, Copy)]
+pub struct StackFrame {
+    pub ebp: u32,
+    pub eip: u32,
 }
 
-/// Stack trace information
-#[derive(Debug)]
-pub struct StackTrace {
-    frames: [u32; MAX_STACK_FRAMES],
-    count: usize,
-}
-
-impl StackTrace {
-    /// Create a new empty stack trace
-    pub fn new() -> Self {
-        StackTrace {
-            frames: [0; MAX_STACK_FRAMES],
-            count: 0,
-        }
-    }
-
-    /// Capture the current stack trace
-    pub fn capture() -> Self {
-        let mut trace = StackTrace::new();
-        trace.walk_stack();
-        trace
-    }
-
-    /// Walk the stack and collect return addresses
-    fn walk_stack(&mut self) {
-        let mut current_frame: *const StackFrame;
-        
-        // Get current EBP
-        unsafe {
-            asm!("mov {}, ebp", out(reg) current_frame);
-        }
-
-        // Walk the stack frames
-        self.count = 0;
-        while !current_frame.is_null() && self.count < MAX_STACK_FRAMES {
-            unsafe {
-                // Check if the frame pointer is valid
-                if !self.is_valid_address(current_frame as usize) {
-                    break;
-                }
-
-                let frame = &*current_frame;
-                
-                // Store the return address
-                self.frames[self.count] = frame.eip;
-                self.count += 1;
-
-                // Move to the previous frame
-                current_frame = frame.ebp;
-
-                // Break if we hit a null frame pointer (end of stack)
-                if current_frame.is_null() {
-                    break;
-                }
-            }
-        }
-    }
-
-    /// Check if an address is valid for stack walking
-    fn is_valid_address(&self, addr: usize) -> bool {
-        // Basic validity checks:
-        // - Not null
-        // - In reasonable kernel memory range
-        // - Aligned to 4-byte boundary
-        addr != 0 && 
-        addr >= 0x100000 &&    // Above 1MB
-        addr < 0x40000000 &&   // Below 1GB (reasonable for kernel)
-        addr % 4 == 0          // 4-byte aligned
-    }
-
-    /// Print the stack trace in a human-friendly format
-    pub fn print(&self) {
-        self.print_with_title("Stack Trace");
-    }
-
-    /// Print the stack trace with a custom title
-    pub fn print_with_title(&self, title: &str) {
-        use crate::println;
-
-        println!("=== {} ===", title);
-        
-        if self.count == 0 {
-            println!("No stack frames captured");
-            return;
-        }
-
-        println!("Call stack ({} frames):", self.count);
-        
-        for (i, &address) in self.frames[..self.count].iter().enumerate() {
-            // Try to resolve function name (basic implementation)
-            if let Some(name) = self.resolve_symbol(address) {
-                println!("  #{}: 0x{:08X} - {}", i, address, name);
-            } else {
-                println!("  #{}: 0x{:08X} - <unknown>", i, address);
-            }
-        }
-        println!("=== End {} ===", title);
-    }
-
-    /// Basic symbol resolution (can be enhanced with symbol table but its not for mon bro samsam...)
-    fn resolve_symbol(&self, address: u32) -> Option<&'static str> {
-        match address {
-            0x100000..0x102000 => Some("kmain area"),
-            0x102000..0x104000 => Some("screen module"),
-            0x104000..0x106000 => Some("keyboard module"),
-            0x106000..0x108000 => Some("shell module"),
-            0x108000..0x10A000 => Some("gdt module"),
-            _ => None,
-        }
-    }
-
-    /// Get the number of frames in this trace
-    pub fn frame_count(&self) -> usize {
-        self.count
-    }
-
-    /// Get a specific frame address
-    pub fn get_frame(&self, index: usize) -> Option<u32> {
-        if index < self.count {
-            Some(self.frames[index])
-        } else {
-            None
-        }
+impl StackFrame {
+    pub fn new(ebp: u32, eip: u32) -> Self {
+        StackFrame { ebp, eip }
     }
 }
 
-/// Print the current stack trace (convenience function)
-pub fn print_stack_trace() {
-    let trace = StackTrace::capture();
-    trace.print();
-}
-
-/// Print the current stack trace with a custom title
-pub fn print_stack_trace_with_title(title: &str) {
-    let trace = StackTrace::capture();
-    trace.print_with_title(title);
-}
-
-/// Get current stack pointer value
+// Get current stack pointer
 pub fn get_stack_pointer() -> u32 {
     let esp: u32;
     unsafe {
@@ -157,7 +23,7 @@ pub fn get_stack_pointer() -> u32 {
     esp
 }
 
-/// Get current base pointer value
+// Get current base pointer
 pub fn get_base_pointer() -> u32 {
     let ebp: u32;
     unsafe {
@@ -166,67 +32,218 @@ pub fn get_base_pointer() -> u32 {
     ebp
 }
 
-/// Print detailed stack information
-pub fn print_stack_info() {
-    use crate::println;
-    
-    let esp = get_stack_pointer();
-    let ebp = get_base_pointer();
-    
-    println!("=== Stack Information ===");
-    println!("Stack Pointer (ESP): 0x{:08X}", esp);
-    println!("Base Pointer (EBP):  0x{:08X}", ebp);
-    println!("Stack Size (approx): {} bytes", ebp.wrapping_sub(esp));
-    
-    // Print stack trace
-    println!();
-    print_stack_trace_with_title("Current Call Stack");
-    
-    // Print some stack contents
-    println!();
-    println!("Stack Contents (near ESP):");
+// Get current instruction pointer (approximately)
+pub fn get_instruction_pointer() -> u32 {
+    let eip: u32;
     unsafe {
-        let stack_ptr = esp as *const u32;
-        for i in 0..8 {
-            let addr = esp + (i * 4);
-            let value = core::ptr::read_volatile(stack_ptr.offset(i as isize));
-            println!("  0x{:08X}: 0x{:08X}", addr, value);
+        asm!(
+            "call 2f",
+            "2: pop {}",
+            out(reg) eip
+        );
+    }
+    eip
+}
+
+// Walk the stack and collect stack frames
+pub fn walk_stack(max_frames: usize) -> Vec<StackFrame> {
+    let mut frames = Vec::new();
+    let mut current_ebp = get_base_pointer();
+    
+    for _ in 0..max_frames {
+        if current_ebp == 0 || !is_valid_address(current_ebp) {
+            break;
+        }
+        
+        unsafe {
+            // Read the saved EBP and EIP from the stack frame
+            let saved_ebp = *(current_ebp as *const u32);
+            let saved_eip = *((current_ebp + 4) as *const u32);
+            
+            frames.push(StackFrame::new(current_ebp, saved_eip));
+            
+            // Move to the previous frame
+            current_ebp = saved_ebp;
+            
+            // Sanity check: ensure we're not going backwards in memory
+            if saved_ebp != 0 && saved_ebp <= current_ebp {
+                break;
+            }
+        }
+    }
+    
+    frames
+}
+
+// Simple Vec implementation for no_std environment
+pub struct Vec<T> {
+    data: [Option<T>; 16], // Fixed size array for simplicity
+    len: usize,
+}
+
+impl<T> Vec<T> {
+    pub fn new() -> Self {
+        Vec {
+            data: [None, None, None, None, None, None, None, None,
+                   None, None, None, None, None, None, None, None],
+            len: 0,
+        }
+    }
+    
+    pub fn push(&mut self, item: T) {
+        if self.len < self.data.len() {
+            self.data[self.len] = Some(item);
+            self.len += 1;
+        }
+    }
+    
+    pub fn len(&self) -> usize {
+        self.len
+    }
+    
+    pub fn iter(&self) -> VecIter<'_, T> {
+        VecIter {
+            vec: self,
+            index: 0,
         }
     }
 }
 
-/// Advanced stack analysis function
-pub fn analyze_stack() {
-    use crate::println;
+pub struct VecIter<'a, T> {
+    vec: &'a Vec<T>,
+    index: usize,
+}
+
+impl<'a, T> Iterator for VecIter<'a, T> {
+    type Item = &'a T;
     
-    println!("=== Advanced Stack Analysis ===");
-    
-    let trace = StackTrace::capture();
-    
-    println!("Call depth: {} levels", trace.frame_count());
-    
-    if trace.frame_count() > 0 {
-        println!("Top of stack: 0x{:08X}", trace.get_frame(0).unwrap_or(0));
-        
-        if trace.frame_count() > 1 {
-            println!("Called from: 0x{:08X}", trace.get_frame(1).unwrap_or(0));
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.vec.len {
+            if let Some(ref item) = self.vec.data[self.index] {
+                self.index += 1;
+                Some(item)
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
-    
-    // Analyze stack usage
+}
+
+// Check if an address is valid (basic sanity checks)
+fn is_valid_address(addr: u32) -> bool {
+    // Basic checks: not null, not too low, reasonable upper bound
+    addr > 0x1000 && addr < 0x80000000 && (addr & 0x3) == 0 // Aligned to 4 bytes
+}
+
+// Print detailed stack information
+pub fn print_stack_info() {
     let esp = get_stack_pointer();
-    let _ebp = get_base_pointer();
+    let ebp = get_base_pointer();
+    let eip = get_instruction_pointer();
     
-    // Estimate stack usage based on ESP
-    let estimated_stack_base = 0x200000u32; // Estimated stack base
-    let stack_used = estimated_stack_base.saturating_sub(esp);
+    crate::println!("=== Kernel Stack Information ===");
+    crate::println!("Current ESP (Stack Pointer): 0x{:08x}", esp);
+    crate::println!("Current EBP (Base Pointer):  0x{:08x}", ebp);
+    crate::println!("Current EIP (Instruction):   0x{:08x}", eip);
+    crate::println!("Stack Direction: Growing down (ESP decreases)");
     
-    println!("Estimated stack usage: {} bytes", stack_used);
-    
-    // Check for high stack usage
-    if stack_used > 4096 {
-        println!("WARNING: High stack usage detected!");
+    if ebp > esp {
+        crate::println!("Stack Size (approx):         {} bytes", ebp - esp);
     }
     
-    trace.print();
+    crate::println!("");
+}
+
+// Print stack memory dump
+pub fn print_stack_dump(words: usize) {
+    let esp = get_stack_pointer();
+    
+    crate::println!("=== Stack Memory Dump ===");
+    crate::println!("Dumping {} words from ESP (0x{:08x}):", words, esp);
+    crate::println!("");
+    
+    unsafe {
+        for i in 0..words {
+            let addr = esp + (i * 4) as u32;
+            if is_valid_address(addr) {
+                let value = *(addr as *const u32);
+                crate::println!("0x{:08x}: 0x{:08x}", addr, value);
+            } else {
+                crate::println!("0x{:08x}: <invalid>", addr);
+                break;
+            }
+        }
+    }
+    crate::println!("");
+}
+
+// Print full stack trace
+pub fn print_stack_trace() {
+    crate::println!("=== Kernel Stack Trace ===");
+    
+    let frames = walk_stack(10);
+    
+    if frames.len() == 0 {
+        crate::println!("No stack frames found or unable to walk stack.");
+        return;
+    }
+    
+    crate::println!("Found {} stack frames:", frames.len());
+    crate::println!("");
+    
+    for (i, frame) in frames.iter().enumerate() {
+        crate::println!("Frame {}: EBP=0x{:08x}, EIP=0x{:08x}", 
+                       i, frame.ebp, frame.eip);
+    }
+    crate::println!("");
+}
+
+// Print stack trace with custom title
+pub fn print_stack_trace_with_title(title: &str) {
+    crate::println!("=== {} ===", title);
+    print_stack_info();
+    print_stack_trace();
+    print_stack_dump(8);
+}
+
+// Get stack usage statistics
+pub fn get_stack_stats() -> StackStats {
+    let esp = get_stack_pointer();
+    let ebp = get_base_pointer();
+    
+    // Estimate stack usage (this is approximate)
+    let estimated_stack_start = 0x100000; // 1MB
+    let used_stack = if esp < estimated_stack_start {
+        estimated_stack_start - esp
+    } else {
+        0
+    };
+    
+    StackStats {
+        current_esp: esp,
+        current_ebp: ebp,
+        estimated_used: used_stack,
+        frame_count: walk_stack(16).len(),
+    }
+}
+
+#[derive(Debug)]
+pub struct StackStats {
+    pub current_esp: u32,
+    pub current_ebp: u32,
+    pub estimated_used: u32,
+    pub frame_count: usize,
+}
+
+impl StackStats {
+    pub fn print(&self) {
+        crate::println!("=== Stack Usage Statistics ===");
+        crate::println!("Current ESP: 0x{:08x}", self.current_esp);
+        crate::println!("Current EBP: 0x{:08x}", self.current_ebp);
+        crate::println!("Estimated Used: {} bytes", self.estimated_used);
+        crate::println!("Stack Frames: {}", self.frame_count);
+        crate::println!("");
+    }
 }
