@@ -1,38 +1,42 @@
-ENTRY(start)
+ENTRY(_start)
 
 SECTIONS {
     . = 1M;
 
-    /* GDT section at required address 0x00000800 */
-    . = 0x800;
-    .gdt : {
+    .boot :
+    {
+        *(.multiboot_header)
+    }
+
+    . = 0x00000800;
+    .gdt :
+    {
         *(.gdt)
     }
 
-    . = 1M;
-
-    .text BLOCK(4K) : ALIGN(4K)
+    . = ALIGN(4K);
+    .text :
     {
-        KEEP(*(.multiboot_header))
         *(.text)
     }
 
-    /* Read-only data */
-    .rodata BLOCK(4K) : ALIGN(4K)
+    .rodata :
     {
         *(.rodata)
     }
 
-    /* Read-write data (initialized) */
-    .data BLOCK(4K) : ALIGN(4K)
+    .data :
     {
         *(.data)
     }
 
-    /* Read-write data (uninitialized) and stack */
-    .bss BLOCK(4K) : ALIGN(4K)
+    .bss :
     {
-        *(COMMON)
         *(.bss)
+    }
+
+    .stack :
+    {
+        *(.stack)
     }
 }

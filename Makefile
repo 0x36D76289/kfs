@@ -1,56 +1,84 @@
-TARGET = i386-unknown-none
+KERNEL_NAME = kfs
+ARCH = x86_64
 
-BUILD_DIR = build
+TARGET_TRIPLE = $(ARCH)-$(KERNEL_NAME)
+TARGET_JSON = $(TARGET_TRIPLE).json
+
+BUILD_DIR = target/$(TARGET_TRIPLE)/debug
 BOOT_DIR = boot
-ISODIR = $(BUILD_DIR)/isofiles
-RUST_SRCS = $(wildcard src/*.rs)
-RUST_SRCS += Cargo.toml
+ISO_DIR = $(BUILD_DIR)/iso
 
-KERNEL_BIN = $(BUILD_DIR)/kernel.bin
-ISO = kfs.iso
-RUST_LIB = target/$(TARGET)/release/libkfs.a
+KERNEL_BIN = $(BUILD_DIR)/$(KERNEL_NAME)
+GRUB_CFG = $(BOOT_DIR)/grub.cfg
+ISO_FILE = $(BUILD_DIR)/$(KERNEL_NAME).iso
 
-NASM = nasm
 CARGO = cargo
-LD = ld
-QEMU = qemu-system-i386
-DOCKER = docker
+NASM = nasm
+GRUB_MKRESCUE = grub-mkrescue
+QEMU = qemu-system-x86_64
 
-all: $(ISO)
+.PHONY: all build run clean test iso help
 
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
-	mkdir -p $(ISODIR)/boot/grub
+all: build
 
-$(BUILD_DIR)/boot.o: $(BOOT_DIR)/boot.asm | $(BUILD_DIR)
-	$(NASM) -f elf32 -o $@ $<
+build:
+	@rustup component add rust-src llvm-tools-preview 2>/dev/null || true
+	@cargo install bootimage 2>/dev/null || true
+	$(CARGO) build --target $(TARGET_JSON)
 
-$(RUST_LIB): $(RUST_SRCS)
-	$(CARGO) build -r
+bootimage: build
+	$(CARGO) bootimage --target $(TARGET_JSON)
 
-$(KERNEL_BIN): $(BUILD_DIR)/boot.o $(RUST_LIB) linker.ld
-	$(LD) -m elf_i386 -n -o $@ -T linker.ld $(BUILD_DIR)/boot.o $(RUST_LIB)
+iso: bootimage
+	@mkdir -p $(ISO_DIR)/boot/grub
+	@cp $(BUILD_DIR)/bootimage-$(KERNEL_NAME).bin $(ISO_DIR)/boot/$(KERNEL_NAME).bin
+	@echo 'set timeout=0' > $(ISO_DIR)/boot/grub/grub.cfg
+	@echo 'set default=0' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@echo '' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@echo 'menuentry "KFS" {' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@echo '    multiboot /boot/$(KERNEL_NAME).bin' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@echo '    boot' >> $(ISO_DIR)/boot/grub/grub.cfg
+	@echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg
+	$(GRUB_MKRESCUE) -o $(ISO_FILE) $(ISO_DIR)
 
-$(ISO): $(KERNEL_BIN) $(BOOT_DIR)/grub.cfg | $(BUILD_DIR)
-	cp $(KERNEL_BIN) $(ISODIR)/boot/kernel.bin
-	cp $(BOOT_DIR)/grub.cfg $(ISODIR)/boot/grub/
-	grub-mkrescue -o $@ $(ISODIR)
+run: bootimage
+	$(CARGO) run --target $(TARGET_JSON)
 
-run: $(ISO)
-	$(QEMU) -cdrom $(ISO)
+run-iso: iso
+	$(QEMU) -cdrom $(ISO_FILE) -m 32M
 
-debug: $(ISO)
-	$(QEMU) -cdrom $(ISO) -s -S
+run-nogui: iso
+	$(QEMU) -nographic -cdrom $(ISO_FILE) -m 32M
 
-docker:
-	$(DOCKER) build --platform linux/amd64 --tag kfs-build .
-	$(DOCKER) run --rm -v .:/kfs kfs-build
+test:
+	$(CARGO) test --target $(TARGET_JSON)
 
 clean:
 	$(CARGO) clean
-	rm -rf $(BUILD_DIR)
-	rm -f $(ISO)
+	rm -rf $(ISO_DIR)
+	rm -f $(ISO_FILE)
 
-re: clean all
+install-tools:
+	rustup install nightly
+	rustup default nightly
+	rustup component add rust-src llvm-tools-preview
+	cargo install bootimage
 
-.PHONY: all run debug clean re
+check-size: bootimage
+	@echo "Checking kernel size..."
+	@SIZE=$$(du -b $(BUILD_DIR)/bootimage-$(KERNEL_NAME).bin | cut -f1); \
+	SIZE_MB=$$((SIZE / 1024 / 1024)); \
+	echo "Kernel size: $$SIZE bytes ($$SIZE_MB MB)"; \
+	if [ $$SIZE -gt 10485760 ]; then \
+		echo "ERROR: Kernel exceeds 10MB limit!"; \
+		exit 1; \
+	else \
+		echo "Size check: OK (under 10MB limit)"; \
+	fi
+
+debug: bootimage
+	$(QEMU) -s -S -drive format=raw,file=$(BUILD_DIR)/bootimage-$(KERNEL_NAME).bin &
+
+re: clean build
+
+.PHONY: all build run clean test iso help install-tools check-size debug re
