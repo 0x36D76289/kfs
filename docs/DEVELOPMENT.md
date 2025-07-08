@@ -1,42 +1,5 @@
 # KFS Development Guide
 
-## Project Structure
-
-The KFS project is organized as follows:
-
-```
-kfs/
-├── src/
-│   ├── arch/               # Architecture-specific code
-│   │   └── x86_64/        # x86_64 implementations
-│   │       ├── boot.s     # Assembly boot code
-│   │       ├── gdt.rs     # Global Descriptor Table
-│   │       ├── idt.rs # Interrupt handling
-│   │       └── mod.rs     # Module declarations
-│   ├── drivers/           # Hardware drivers
-│   │   ├── vga_buffer.rs  # VGA text mode driver
-│   │   ├── keyboard.rs    # PS/2 keyboard driver
-│   │   └── mod.rs         # Module declarations
-│   ├── kernel/            # Core kernel functionality
-│   │   ├── memory.rs      # Memory management (placeholder)
-│   │   ├── process.rs     # Process management (placeholder)
-│   │   └── mod.rs         # Module declarations
-│   ├── utils/             # Utility functions
-│   │   ├── kfs_lib.rs     # C-style library functions
-│   │   └── mod.rs         # Module declarations
-│   ├── ui/                # User interface
-│   │   ├── shell.rs       # Interactive shell
-│   │   └── mod.rs         # Module declarations
-│   ├── lib.rs             # Main library file
-│   └── main.rs            # Kernel entry point
-├── build/                 # Build scripts and configuration
-├── docs/                  # Documentation
-├── target/                # Compiled output
-├── Cargo.toml            # Rust project configuration
-├── Makefile              # Build system
-└── README.md             # Project overview
-```
-
 ## Adding New Features
 
 ### Adding a New Driver
