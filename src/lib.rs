@@ -5,15 +5,17 @@
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
-pub mod vga_buffer;
-pub mod interrupts;
-pub mod kfs_lib;
-pub mod gdt;
-pub mod shell;
-pub mod keyboard;
+pub mod arch;
+pub mod drivers;
+pub mod kernel;
+pub mod utils;
+pub mod ui;
+
+// Re-export commonly used items for convenience
+pub use drivers::vga_buffer::{clear_screen, set_color, Color};
+pub use utils::kfs_lib::kprintf;
 
 #[cfg(test)]
-#[no_mangle]
 pub extern "C" fn _start() -> ! {
     init();
     test_main();
@@ -21,8 +23,8 @@ pub extern "C" fn _start() -> ! {
 }
 
 pub fn init() {
-    gdt::init_gdt();
-    interrupts::init_idt();
+    arch::init();
+    drivers::init();
 }
 
 #[cfg(test)]

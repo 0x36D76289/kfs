@@ -2,18 +2,20 @@ KERNEL_NAME = kfs
 ARCH = x86_64
 
 TARGET_TRIPLE = $(ARCH)-$(KERNEL_NAME)
-TARGET_JSON = $(TARGET_TRIPLE).json
+TARGET_JSON = build/$(TARGET_TRIPLE).json
 
 BUILD_DIR = target/$(TARGET_TRIPLE)/debug
 BOOT_DIR = boot
 ISO_DIR = $(BUILD_DIR)/iso
 
-KERNEL_BIN = $(BUILD_DIR)/$(KERNEL_NAME)
+KERNEL_ELF = $(BUILD_DIR)/$(KERNEL_NAME)
+KERNEL_BIN = $(BUILD_DIR)/$(KERNEL_NAME).bin
 GRUB_CFG = $(BOOT_DIR)/grub.cfg
 ISO_FILE = $(BUILD_DIR)/$(KERNEL_NAME).iso
 
 CARGO = cargo
 NASM = nasm
+OBJCOPY = llvm-objcopy
 GRUB_MKRESCUE = grub-mkrescue
 QEMU = qemu-system-x86_64
 
@@ -22,17 +24,15 @@ QEMU = qemu-system-x86_64
 all: build
 
 build:
-	@rustup component add rust-src llvm-tools-preview 2>/dev/null || true
-	@cargo install bootimage 2>/dev/null || true
 	$(CARGO) build --target $(TARGET_JSON)
 
-bootimage: build
-	$(CARGO) bootimage --target $(TARGET_JSON)
+kernel-bin: build
+	$(OBJCOPY) --strip-all -O binary $(KERNEL_ELF) $(KERNEL_BIN)
 
-iso: bootimage
+iso: kernel-bin
 	@mkdir -p $(ISO_DIR)/boot/grub
-	@cp $(BUILD_DIR)/bootimage-$(KERNEL_NAME).bin $(ISO_DIR)/boot/$(KERNEL_NAME).bin
-	@echo 'set timeout=0' > $(ISO_DIR)/boot/grub/grub.cfg
+	@cp $(KERNEL_BIN) $(ISO_DIR)/boot/$(KERNEL_NAME).bin
+	@echo 'set timeout=2' > $(ISO_DIR)/boot/grub/grub.cfg
 	@echo 'set default=0' >> $(ISO_DIR)/boot/grub/grub.cfg
 	@echo '' >> $(ISO_DIR)/boot/grub/grub.cfg
 	@echo 'menuentry "KFS" {' >> $(ISO_DIR)/boot/grub/grub.cfg
@@ -41,8 +41,8 @@ iso: bootimage
 	@echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg
 	$(GRUB_MKRESCUE) -o $(ISO_FILE) $(ISO_DIR)
 
-run: bootimage
-	$(CARGO) run --target $(TARGET_JSON)
+run: iso
+	$(QEMU) -cdrom $(ISO_FILE) -m 32M
 
 run-iso: iso
 	$(QEMU) -cdrom $(ISO_FILE) -m 32M
@@ -56,17 +56,18 @@ test:
 clean:
 	$(CARGO) clean
 	rm -rf $(ISO_DIR)
+
+fclean: clean
 	rm -f $(ISO_FILE)
 
 install-tools:
 	rustup install nightly
 	rustup default nightly
 	rustup component add rust-src llvm-tools-preview
-	cargo install bootimage
 
-check-size: bootimage
+check-size: kernel-bin
 	@echo "Checking kernel size..."
-	@SIZE=$$(du -b $(BUILD_DIR)/bootimage-$(KERNEL_NAME).bin | cut -f1); \
+	@SIZE=$$(du -b $(KERNEL_BIN) | cut -f1); \
 	SIZE_MB=$$((SIZE / 1024 / 1024)); \
 	echo "Kernel size: $$SIZE bytes ($$SIZE_MB MB)"; \
 	if [ $$SIZE -gt 10485760 ]; then \
@@ -76,9 +77,26 @@ check-size: bootimage
 		echo "Size check: OK (under 10MB limit)"; \
 	fi
 
-debug: bootimage
-	$(QEMU) -s -S -drive format=raw,file=$(BUILD_DIR)/bootimage-$(KERNEL_NAME).bin &
+debug: kernel-bin
+	$(QEMU) -s -S -drive format=raw,file=$(KERNEL_BIN) &
 
 re: clean build
 
-.PHONY: all build run clean test iso help install-tools check-size debug re
+help:
+	@echo "Available targets:"
+	@echo "  build       - Build the kernel"
+	@echo "  kernel-bin  - Build kernel and create binary"
+	@echo "  iso         - Create bootable ISO"
+	@echo "  run         - Run kernel in QEMU"
+	@echo "  run-iso     - Run ISO in QEMU"
+	@echo "  run-nogui   - Run without GUI"
+	@echo "  test        - Run tests"
+	@echo "  clean       - Clean build artifacts"
+	@echo "  fclean      - Full clean including ISO"
+	@echo "  debug       - Start QEMU with GDB server"
+	@echo "  check-size  - Check kernel size"
+	@echo "  install-tools - Install required tools"
+	@echo "  re          - Clean and rebuild"
+	@echo "  help        - Show this help"
+
+.PHONY: all build run clean test iso help install-tools check-size debug re kernel-bin

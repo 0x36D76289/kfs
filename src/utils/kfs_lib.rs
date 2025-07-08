@@ -136,7 +136,7 @@ pub fn itoa(mut value: i32, buffer: &mut [u8], base: u32) -> &str {
 }
 
 use crate::{print, println};
-use crate::vga_buffer::Color;
+use crate::drivers::vga_buffer::Color;
 
 pub fn kprintf(format: &str, args: &[PrintfArg]) {
     let mut chars = format.chars().peekable();
@@ -201,11 +201,11 @@ pub fn kprintf(format: &str, args: &[PrintfArg]) {
 }
 
 pub fn debug_printf(color: Color, format: &str, args: &[PrintfArg]) {
-    crate::vga_buffer::set_color(color, Color::Black);
+    crate::drivers::vga_buffer::set_color(color, Color::Black);
     print!("[DEBUG] ");
     kprintf(format, args);
     println!();
-    crate::vga_buffer::set_color(Color::White, Color::Black); // Restore
+    crate::drivers::vga_buffer::set_color(Color::White, Color::Black); // Restore
 }
 
 pub fn error_printf(format: &str, args: &[PrintfArg]) {
@@ -235,30 +235,30 @@ pub enum PrintfArg<'a> {
 #[macro_export]
 macro_rules! kprintf {
     ($fmt:expr) => {
-        $crate::kfs_lib::kprintf($fmt, &[])
+        $crate::utils::kfs_lib::kprintf($fmt, &[])
     };
     ($fmt:expr, $($arg:expr),*) => {
-        $crate::kfs_lib::kprintf($fmt, &[$($crate::kfs_lib::PrintfArg::from($arg)),*])
+        $crate::utils::kfs_lib::kprintf($fmt, &[$($crate::utils::kfs_lib::PrintfArg::from($arg)),*])
     };
 }
 
 #[macro_export]
 macro_rules! debug_print {
     ($fmt:expr) => {
-        $crate::kfs_lib::debug_printf($crate::vga_buffer::Color::LightBlue, $fmt, &[])
+        $crate::utils::kfs_lib::debug_printf($crate::drivers::vga_buffer::Color::LightBlue, $fmt, &[])
     };
     ($fmt:expr, $($arg:expr),*) => {
-        $crate::kfs_lib::debug_printf($crate::vga_buffer::Color::LightBlue, $fmt, &[$($crate::kfs_lib::PrintfArg::from($arg)),*])
+        $crate::utils::kfs_lib::debug_printf($crate::drivers::vga_buffer::Color::LightBlue, $fmt, &[$($crate::utils::kfs_lib::PrintfArg::from($arg)),*])
     };
 }
 
 #[macro_export]
 macro_rules! error_print {
     ($fmt:expr) => {
-        $crate::kfs_lib::error_printf($fmt, &[])
+        $crate::utils::kfs_lib::error_printf($fmt, &[])
     };
     ($fmt:expr, $($arg:expr),*) => {
-        $crate::kfs_lib::error_printf($fmt, &[$($crate::kfs_lib::PrintfArg::from($arg)),*])
+        $crate::utils::kfs_lib::error_printf($fmt, &[$($crate::utils::kfs_lib::PrintfArg::from($arg)),*])
     };
 }
 
