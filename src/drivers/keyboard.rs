@@ -174,8 +174,8 @@ impl Keyboard {
             match character {
                 'l' | 'L' => {
                     // Ctrl+L - Clear screen
-                    crate::vga_buffer::clear_screen();
-                    crate::shell::show_prompt();
+                    crate::drivers::vga_buffer::clear_screen();
+                    crate::ui::shell::show_prompt();
                     return;
                 }
                 'c' | 'C' => {
@@ -183,13 +183,13 @@ impl Keyboard {
                     self.input_pos = 0;
                     self.input_line.fill(0);
                     println!("^C");
-                    crate::shell::show_prompt();
+                    crate::ui::shell::show_prompt();
                     return;
                 }
                 'd' | 'D' => {
                     // Ctrl+D - Exit/EOF
                     println!("^D");
-                    crate::shell::handle_command("exit");
+                    crate::ui::shell::handle_command("exit");
                     return;
                 }
                 _ => {}
@@ -201,7 +201,7 @@ impl Keyboard {
                 '1'..='9' => {
                     // Alt+1-9 - Switch virtual terminals
                     let screen_num = character as u8 - b'0';
-                    crate::shell::switch_screen(screen_num);
+                    crate::ui::shell::switch_screen(screen_num);
                     return;
                 }
                 _ => {}
@@ -217,11 +217,11 @@ impl Keyboard {
                     let cmd_str = unsafe {
                         core::str::from_utf8_unchecked(&self.input_line[..self.input_pos])
                     };
-                    crate::shell::handle_command(cmd_str);
+                    crate::ui::shell::handle_command(cmd_str);
                 }
                 self.input_pos = 0;
                 self.input_line.fill(0);
-                crate::shell::show_prompt();
+                crate::ui::shell::show_prompt();
             }
             '\x08' => {
                 // Backspace

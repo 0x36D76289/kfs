@@ -56,9 +56,9 @@ fn init_pics() {
         pic1_data.write(0x01); // 8086/88 mode
         pic2_data.write(0x01);
         
-        // Mask all interrupts initially except keyboard (IRQ1)
+        // Mask all idt initially except keyboard (IRQ1)
         pic1_data.write(0xFD); // 11111101 - enable only IRQ1 (keyboard)
-        pic2_data.write(0xFF); // 11111111 - disable all PIC2 interrupts
+        pic2_data.write(0xFF); // 11111111 - disable all PIC2 idt
     }
 }
 
@@ -90,8 +90,8 @@ extern "x86-interrupt" fn double_fault_handler_wrapper(
     println!("{:#?}", stack_frame);
     
     // Print stack information for debugging
-    crate::gdt::print_kernel_stack();
-    crate::gdt::print_call_stack();
+    crate::arch::x86_64::gdt::print_kernel_stack();
+    crate::arch::x86_64::gdt::print_call_stack();
     
     loop {
         x86_64::instructions::hlt();
@@ -110,8 +110,8 @@ extern "x86-interrupt" fn page_fault_handler(
     println!("{:#?}", stack_frame);
     
     // Print stack information for debugging
-    crate::gdt::print_kernel_stack();
-    crate::gdt::print_call_stack();
+    crate::arch::x86_64::gdt::print_kernel_stack();
+    crate::arch::x86_64::gdt::print_call_stack();
     
     panic!("Page fault");
 }
@@ -122,8 +122,8 @@ extern "x86-interrupt" fn general_protection_fault_handler(
     println!("{:#?}", stack_frame);
     
     // Print stack information for debugging
-    crate::gdt::print_kernel_stack();
-    crate::gdt::print_call_stack();
+    crate::arch::x86_64::gdt::print_kernel_stack();
+    crate::arch::x86_64::gdt::print_call_stack();
     
     panic!("General protection fault");
 }
@@ -133,8 +133,8 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFram
     println!("{:#?}", stack_frame);
     
     // Print stack information for debugging
-    crate::gdt::print_kernel_stack();
-    crate::gdt::print_call_stack();
+    crate::arch::x86_64::gdt::print_kernel_stack();
+    crate::arch::x86_64::gdt::print_call_stack();
     
     panic!("Invalid opcode");
 }
@@ -145,8 +145,8 @@ extern "x86-interrupt" fn segment_not_present_handler(
     println!("{:#?}", stack_frame);
     
     // Print stack information for debugging
-    crate::gdt::print_kernel_stack();
-    crate::gdt::print_call_stack();
+    crate::arch::x86_64::gdt::print_kernel_stack();
+    crate::arch::x86_64::gdt::print_call_stack();
     
     panic!("Segment not present");
 }
@@ -157,15 +157,15 @@ extern "x86-interrupt" fn stack_segment_fault_handler(
     println!("{:#?}", stack_frame);
     
     // Print stack information for debugging
-    crate::gdt::print_kernel_stack();
-    crate::gdt::print_call_stack();
+    crate::arch::x86_64::gdt::print_kernel_stack();
+    crate::arch::x86_64::gdt::print_call_stack();
     
     panic!("Stack segment fault");
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
     // Handle keyboard interrupt
-    crate::keyboard::handle_keyboard_interrupt();
+    crate::drivers::keyboard::handle_keyboard_interrupt();
     
     // Send End of Interrupt signal
     send_eoi(KEYBOARD_INTERRUPT_ID);

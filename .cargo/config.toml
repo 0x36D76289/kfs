@@ -1,8 +1,5 @@
 [build]
-target = "x86_64-kfs.json"
-
-[target.'cfg(target_os = "none")']
-runner = "bootimage runner"
+target = "build/x86_64-kfs.json"
 
 [unstable]
 build-std = ["core", "compiler_builtins"]

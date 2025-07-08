@@ -1,1 +1,39 @@
-/target
+# Compiled binaries
+target/
+*.bin
+*.iso
+*.img
+
+# Rust/Cargo files
+Cargo.lock
+*.pdb
+
+# Build artifacts
+build/output/
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp

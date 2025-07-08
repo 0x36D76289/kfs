@@ -1,5 +1,5 @@
 use crate::{println, print};
-use crate::vga_buffer::{Color, set_color};
+use crate::drivers::vga_buffer::{Color, set_color};
 use spin::Mutex;
 use lazy_static::lazy_static;
 
@@ -109,21 +109,21 @@ impl Shell {
     }
     
     fn clear_screen(&self) {
-        crate::vga_buffer::clear_screen();
+        crate::drivers::vga_buffer::clear_screen();
         set_color(Color::White, Color::Black);
         println!("Screen cleared.");
     }
     
     fn show_stack(&self) {
-        crate::gdt::print_kernel_stack();
+        crate::arch::x86_64::gdt::print_kernel_stack();
     }
     
     fn show_call_stack(&self) {
-        crate::gdt::print_call_stack();
+        crate::arch::x86_64::gdt::print_call_stack();
     }
     
     fn show_gdt_info(&self) {
-        crate::gdt::print_gdt_info();
+        crate::arch::x86_64::gdt::print_gdt_info();
     }
     
     fn show_screen_info(&self) {
@@ -141,10 +141,13 @@ impl Shell {
         set_color(Color::White, Color::Black);
         
         let test_str = b"Test\0";
-        let len = crate::kfs_lib::strlen(test_str.as_ptr());
+        let len = crate::utils::kfs_lib::strlen(test_str.as_ptr());
         println!("  strlen test: length = {}", len);
         
-        crate::kprintf!("  kprintf test: %s %d", "number", 42);
+        crate::utils::kfs_lib::kprintf("  kprintf test: %s %d", &[
+            crate::utils::kfs_lib::PrintfArg::Str("number"), 
+            crate::utils::kfs_lib::PrintfArg::Int(42)
+        ]);
         println!();
         
         println!("  Testing breakpoint exception...");
@@ -222,10 +225,10 @@ pub fn show_prompt() {
 
 pub fn switch_screen(screen_num: u8) {
     if screen_num > 0 && screen_num <= 9 {
-        crate::vga_buffer::clear_screen();
-        crate::vga_buffer::set_color(Color::Green, Color::Black);
+        crate::drivers::vga_buffer::clear_screen();
+        crate::drivers::vga_buffer::set_color(Color::Green, Color::Black);
         println!("Switched to virtual screen {}", screen_num);
-        crate::vga_buffer::set_color(Color::White, Color::Black);
+        crate::drivers::vga_buffer::set_color(Color::White, Color::Black);
         show_interactive_prompt();
     }
 }
