@@ -25,6 +25,10 @@ iso: $(KERNEL_BIN)
 	echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg
 	grub-mkrescue -o $(ISO_DIR)/$(ISO_NAME) $(ISO_DIR)
 
+docker:
+	docker build --platform linux/amd64 --tag kfs-build .
+	docker run --rm -v .:/kfs kfs-build
+
 clean:
 	cargo clean
 
