@@ -1,5 +1,5 @@
 ARCH := i386
-TARGET := i686-unknown-linux-gnu
+TARGET := i386-unknown-none
 KERNEL_BIN := target/$(TARGET)/debug/kernel
 ISO_DIR := isofiles
 ISO_NAME := rust-kernel.iso
@@ -9,7 +9,7 @@ ISO_NAME := rust-kernel.iso
 all: $(KERNEL_BIN)
 
 $(KERNEL_BIN): src/**/*.rs boot/boot.S boot/linker.ld
-	cargo build --target $(TARGET)
+	cargo build
 
 run: $(KERNEL_BIN)
 	qemu-system-i386 -kernel $(KERNEL_BIN)

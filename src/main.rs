@@ -1,5 +1,7 @@
 #![no_std]
 #![no_main]
+#![allow(internal_features)]
+#![feature(lang_items)]
 
 use core::panic::PanicInfo;
 
@@ -12,10 +14,10 @@ mod utils;
 pub extern "C" fn kernel_main() -> ! {
     drivers::serial::init();
     drivers::vga::init();
-    kernel::gdt::init();
-    kernel::idt::init();
+    // arch::i386::gdt::init();
+    // arch::i386::idt::init();
     arch::i386::init();
-    
+
     printk!("GDT initialized successfully!\n");
     printk!("Kernel stack analysis:\n");
     
@@ -37,3 +39,6 @@ fn panic(_info: &PanicInfo) -> ! {
         arch::i386::cpu::halt();
     }
 }
+
+#[lang = "eh_personality"]
+extern "C" fn eh_personality() {}

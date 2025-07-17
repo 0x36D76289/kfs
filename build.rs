@@ -21,10 +21,10 @@ fn main() {
     // Link the boot object file
     println!("cargo:rustc-link-arg={}", boot_o.display());
     
-    // Lier le script de linkage
-    println!("cargo:rustc-link-arg=-T");
-    println!("cargo:rustc-link-arg=boot/linker.ld");
-    
+    // Rebuild if boot files change
+    println!("cargo:rerun-if-changed=boot/boot.S");
+    println!("cargo:rerun-if-changed=boot/linker.ld");
+
     // Assembler le code de boot
     println!("cargo:rerun-if-changed=boot/boot.S");
     println!("cargo:rerun-if-changed=boot/linker.ld");
