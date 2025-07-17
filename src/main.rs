@@ -1,44 +1,39 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt)]
 
 use core::panic::PanicInfo;
-use kfs::drivers::vga_buffer::{Color, set_color, clear_screen};
 
-#[unsafe(no_mangle)]
+mod arch;
+mod kernel;
+mod drivers;
+mod utils;
+
+#[no_mangle]
 pub extern "C" fn kernel_main() -> ! {
-    clear_screen();
-    set_color(Color::White, Color::Black);
+    drivers::serial::init();
+    drivers::vga::init();
+    kernel::gdt::init();
+    kernel::idt::init();
+    arch::i386::init();
     
-    kfs::init();
+    printk!("GDT initialized successfully!\n");
+    printk!("Kernel stack analysis:\n");
     
-    x86_64::instructions::interrupts::enable();
+    kernel::stack::print_kernel_stack();
+    kernel::stack::print_stack_trace();
     
-    kfs::ui::shell::start_shell();
+    drivers::serial::write_string("Architecture initialized\n");
     
     loop {
-        x86_64::instructions::hlt();
+        arch::i386::cpu::halt();
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn _start() -> ! {
-    kernel_main()
-}
-
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    set_color(Color::Red, Color::Black);
-    kfs::println!();
-    kfs::println!("KERNEL PANIC!");
-    kfs::println!("{}", info);
-    
-    kfs::println!();
-    kfs::println!("Stack information at panic:");
-    kfs::arch::x86_64::gdt::print_kernel_stack();
-    kfs::arch::x86_64::gdt::print_call_stack();
-    
+fn panic(_info: &PanicInfo) -> ! {
+    printk!("KERNEL PANIC: {}\n", _info);
+    kernel::stack::print_kernel_stack();
     loop {
-        x86_64::instructions::hlt();
+        arch::i386::cpu::halt();
     }
 }
