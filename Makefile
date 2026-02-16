@@ -1,41 +1,59 @@
-ARCH := i386
-TARGET := i386-unknown-none
-KERNEL_BIN := target/$(TARGET)/debug/kernel
-ISO_DIR := isofiles
-ISO_NAME := rust-kernel.iso
+SRC_DIR		= src
+BUILD_DIR	= build
+ISO_DIR		= $(BUILD_DIR)/isofiles
 
-.PHONY: all clean run iso
+KERNEL		= $(BUILD_DIR)/kfs.bin
+ISO			= kfs.iso
 
-all: $(KERNEL_BIN)
+NASM		= nasm
+LD			= x86_64-elf-ld
+CARGO		= cargo
 
-$(KERNEL_BIN): src/**/*.rs boot/boot.S boot/linker.ld
-	cargo build
+TARGET		= i686-kfs
 
-run: $(KERNEL_BIN)
-	qemu-system-i386 -kernel $(KERNEL_BIN)
+ASM_SRC		= $(SRC_DIR)/boot.asm
+ASM_OBJ		= $(BUILD_DIR)/boot.o
+RUST_LIB	= target/$(TARGET)/release/libkfs.a
 
-run-iso: iso
-	qemu-system-i386 -cdrom $(ISO_DIR)/$(ISO_NAME)
+NASMFLAGS	= -f elf32
+LDFLAGS		= -m elf_i386 -T linker.ld -nostdlib
 
-iso: $(KERNEL_BIN)
+all: $(ISO)
+
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+$(ASM_OBJ): $(ASM_SRC) | $(BUILD_DIR)
+	$(NASM) $(NASMFLAGS) $< -o $@
+
+$(RUST_LIB): $(SRC_DIR)/lib.rs $(SRC_DIR)/vga.rs Cargo.toml
+	$(CARGO) build --release --target $(TARGET).json
+
+$(KERNEL): $(ASM_OBJ) $(RUST_LIB)
+	$(LD) $(LDFLAGS) -o $@ $(ASM_OBJ) $(RUST_LIB)
+
+$(ISO): $(KERNEL)
 	mkdir -p $(ISO_DIR)/boot/grub
-	cp $(KERNEL_BIN) $(ISO_DIR)/boot/kernel.bin
-	echo 'menuentry "KFS" {' > $(ISO_DIR)/boot/grub/grub.cfg
-	echo '	multiboot /boot/kernel.bin' >> $(ISO_DIR)/boot/grub/grub.cfg
-	echo '}' >> $(ISO_DIR)/boot/grub/grub.cfg
-	grub-mkrescue -o $(ISO_DIR)/$(ISO_NAME) $(ISO_DIR)
+	cp $(KERNEL) $(ISO_DIR)/boot/kfs.bin
+	cp grub.cfg $(ISO_DIR)/boot/grub/grub.cfg
+	i686-elf-grub-mkrescue -o $@ $(ISO_DIR) 2>/dev/null || \
+		grub-mkrescue -o $@ $(ISO_DIR) 2>/dev/null || \
+		grub2-mkrescue -o $@ $(ISO_DIR) 2>/dev/null
 
-docker:
-	docker build --platform linux/amd64 --tag kfs-build .
-	docker run --rm -v .:/kfs kfs-build
+run: $(ISO)
+	qemu-system-i386 -cdrom $(ISO)
+
+debug: $(ISO)
+	qemu-system-i386 -cdrom $(ISO) -d int,cpu_reset -no-reboot
+
+run-kvm: $(ISO)
+	qemu-system-i386 -cdrom $(ISO) -enable-kvm
 
 clean:
-	cargo clean
+	rm -rf $(BUILD_DIR)
+	rm -f $(ISO)
+	$(CARGO) clean
 
-fclean: clean
-	rm -rf $(ISO_DIR)
+re: clean all
 
-re: fclean all
-
-.PHONY: all clean run iso fclean re
-.DEFAULT_GOAL := all
+.PHONY: all run debug run-kvm clean re

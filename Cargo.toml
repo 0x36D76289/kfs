@@ -2,15 +2,17 @@
 name = "kfs"
 version = "0.1.0"
 edition = "2021"
+authors = ["42 Student"]
+description = "KFS"
 
-[[bin]]
-name = "kernel"
-path = "src/main.rs"
-
-[dependencies]
+[lib]
+crate-type = ["staticlib"]
+path = "src/lib.rs"
 
 [profile.dev]
 panic = "abort"
 
 [profile.release]
 panic = "abort"
+opt-level = 2
+lto = true

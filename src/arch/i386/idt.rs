@@ -1,1 +1,0 @@
-// https://wiki.osdev.org/Interrupt_Descriptor_Table
